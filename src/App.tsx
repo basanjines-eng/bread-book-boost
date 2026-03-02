@@ -3,7 +3,19 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import { AccountingProvider } from "@/store/AccountingContext";
+import { Layout } from "@/components/Layout";
+import Dashboard from "./pages/Dashboard";
+import PlanCuentas from "./pages/PlanCuentas";
+import LibroDiario from "./pages/LibroDiario";
+import VentasPage from "./pages/VentasPage";
+import ProduccionPage from "./pages/ProduccionPage";
+import StockPage from "./pages/StockPage";
+import FlujoCajaPage from "./pages/FlujoCajaPage";
+import LibroMayorPage from "./pages/LibroMayorPage";
+import ReportesPage from "./pages/ReportesPage";
+import CierreMensualPage from "./pages/CierreMensualPage";
+import ConfiguracionPage from "./pages/ConfiguracionPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -13,13 +25,26 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <AccountingProvider>
+        <BrowserRouter>
+          <Layout>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/plan-cuentas" element={<PlanCuentas />} />
+              <Route path="/libro-diario" element={<LibroDiario />} />
+              <Route path="/ventas" element={<VentasPage />} />
+              <Route path="/produccion" element={<ProduccionPage />} />
+              <Route path="/stock" element={<StockPage />} />
+              <Route path="/flujo-caja" element={<FlujoCajaPage />} />
+              <Route path="/libro-mayor" element={<LibroMayorPage />} />
+              <Route path="/reportes" element={<ReportesPage />} />
+              <Route path="/cierre-mensual" element={<CierreMensualPage />} />
+              <Route path="/configuracion" element={<ConfiguracionPage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Layout>
+        </BrowserRouter>
+      </AccountingProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
