@@ -317,13 +317,13 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
 
   // Editar venta (revertir + reaplicar)
   const editarVenta = useCallback((id: string, v: { fecha: string; producto_id: string; cantidad_vendida: number; total_venta: number; forma_cobro_cuenta_id: string }): boolean => {
-    const ventaOriginal = state.ventas.find(vt => vt.id === id && vt.estado === 'ACTIVA');
-    if (!ventaOriginal) return false;
-    if (isMesCerrado(ventaOriginal.fecha) || isMesCerrado(v.fecha)) return false;
+    const ventaOriginal = state.ventas.find(vt => vt.id === id && (vt.estado === 'ACTIVA' || !vt.estado));
+    if (!ventaOriginal) { console.error('editarVenta: venta no encontrada o no activa', id); return false; }
+    if (isMesCerrado(ventaOriginal.fecha) || isMesCerrado(v.fecha)) { console.error('editarVenta: mes cerrado'); return false; }
 
     // Simulate stock after reverting original
     const stkOrig = state.stock.find(s => s.producto_id === ventaOriginal.producto_id);
-    if (!stkOrig) return false;
+    if (!stkOrig) { console.error('editarVenta: stock no encontrado para producto original', ventaOriginal.producto_id); return false; }
 
     // Revert original stock
     let revertedCant = stkOrig.cantidad_actual + ventaOriginal.cantidad_vendida;
@@ -333,10 +333,10 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     // If product changed, handle both stocks
     if (v.producto_id !== ventaOriginal.producto_id) {
       const stkNew = state.stock.find(s => s.producto_id === v.producto_id);
-      if (!stkNew) return false;
-      if (v.cantidad_vendida > stkNew.cantidad_actual) return false;
+      if (!stkNew) { console.error('editarVenta: stock no encontrado para nuevo producto'); return false; }
+      if (v.cantidad_vendida > stkNew.cantidad_actual) { console.error('editarVenta: stock insuficiente nuevo producto'); return false; }
     } else {
-      if (v.cantidad_vendida > revertedCant) return false;
+      if (v.cantidad_vendida > revertedCant) { console.error('editarVenta: stock insuficiente tras revertir'); return false; }
     }
 
     const producto = state.productos.find(p => p.id === v.producto_id);

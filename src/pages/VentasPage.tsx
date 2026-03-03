@@ -48,7 +48,11 @@ export default function VentasPage() {
     }
 
     if (editingId) {
-      // Edit mode
+      // Edit mode - check mes cerrado first for better error message
+      if (isMesCerrado(fecha)) {
+        toast.error("No se puede editar: el mes de destino está cerrado.");
+        return;
+      }
       const result = editarVenta(editingId, {
         fecha, producto_id: productoId,
         cantidad_vendida: cantNum,
@@ -59,7 +63,7 @@ export default function VentasPage() {
         toast.success("Venta actualizada correctamente");
         resetForm();
       } else {
-        toast.error("Error al editar. Verifique stock y que el mes no esté cerrado.");
+        toast.error("Error al editar. Revise la consola para más detalles.");
       }
     } else {
       // New sale
