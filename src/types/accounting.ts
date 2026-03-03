@@ -65,6 +65,8 @@ export interface StockProducto {
   updated_at: string;
 }
 
+export type EstadoVenta = 'ACTIVA' | 'ANULADA';
+
 export interface Venta {
   id: string;
   fecha: string;
@@ -72,11 +74,14 @@ export interface Venta {
   cantidad_vendida: number;
   total_venta: number;
   costo_total_venta: number;
+  costo_unitario_aplicado: number;
   margen: number;
   margen_porcentaje: number;
   forma_cobro_cuenta_id: string;
   cuenta_ingreso_id: string;
   comprobante_id: string;
+  estado: EstadoVenta;
+  deleted_at?: string | null;
 }
 
 export interface CierreMensual {
