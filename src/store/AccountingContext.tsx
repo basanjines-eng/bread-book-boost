@@ -72,9 +72,50 @@ function saveState(state: AccountingState) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
+function migrateProductionComprobantes(state: AccountingState): AccountingState {
+  // Fix old production comprobantes that incorrectly used INGRESO/GASTO accounts
+  // Production should ONLY touch A1.7 (Debe) and A1.6 (Haber) — both ACTIVO
+  const cInsumos = state.cuentas.find(c => c.codigo === 'A1.6');
+  const cProdTerm = state.cuentas.find(c => c.codigo === 'A1.7');
+  if (!cInsumos || !cProdTerm) return state;
+
+  const ingresoGastoIds = new Set(
+    state.cuentas.filter(c => c.tipo === 'INGRESO' || c.tipo === 'GASTO' || c.tipo === 'PATRIMONIO').map(c => c.id)
+  );
+
+  // Find production comprobantes by matching glosa pattern
+  const prodComprobanteIds = new Set(
+    state.producciones
+      .filter(p => p.comprobante_id && p.estado === 'CONFIRMADA' && !p.deleted_at)
+      .map(p => p.comprobante_id!)
+  );
+
+  let needsFix = false;
+  const fixedDetalles = state.detalles.map(d => {
+    if (!prodComprobanteIds.has(d.comprobante_id)) return d;
+    // Check if this detail incorrectly uses an INGRESO/GASTO/PATRIMONIO account
+    if (ingresoGastoIds.has(d.cuenta_id)) {
+      needsFix = true;
+      // Replace: if it was a Debe entry, it should be A1.7; if Haber, it should be A1.6
+      if (d.debe > 0) {
+        return { ...d, cuenta_id: cProdTerm.id, descripcion: 'Inventario Producto Terminado' };
+      } else {
+        return { ...d, cuenta_id: cInsumos.id, descripcion: 'Inventario Insumos' };
+      }
+    }
+    return d;
+  });
+
+  if (needsFix) {
+    console.log('PanConta: Migrated old production comprobantes to correct accounts (A1.6/A1.7 only)');
+    return { ...state, detalles: fixedDetalles };
+  }
+  return state;
+}
+
 function initState(): AccountingState {
   const saved = loadState();
-  if (saved && saved.cuentas?.length > 0) return saved;
+  if (saved && saved.cuentas?.length > 0) return migrateProductionComprobantes(saved);
   const cuentas = getInitialCuentas();
   const productos = getInitialProductos();
   const stock = getInitialStock(productos);
