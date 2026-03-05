@@ -33,6 +33,9 @@ interface AccountingContextType extends AccountingState {
   // Produccion
   addProduccion: (p: Omit<Produccion, 'id' | 'costo_unitario'>) => void;
   confirmarProduccion: (id: string) => void;
+  eliminarProduccion: (id: string) => boolean;
+  editarProduccion: (id: string, data: { fecha: string; producto_id: string; cantidad_producida: number; costo_total_produccion: number }) => boolean;
+  canModifyProduccion: (id: string) => { ok: boolean; reason?: string };
   // Ventas
   registrarVenta: (v: { fecha: string; producto_id: string; cantidad_vendida: number; total_venta: number; forma_cobro_cuenta_id: string }) => string | null;
   eliminarVenta: (id: string) => boolean;
@@ -206,13 +209,153 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
 
       return {
         ...s,
-        producciones: s.producciones.map(p => p.id === id ? { ...p, estado: 'CONFIRMADA' as const } : p),
+        producciones: s.producciones.map(p => p.id === id ? { ...p, estado: 'CONFIRMADA' as const, comprobante_id: compId } : p),
         stock: newStock,
         comprobantes: [...s.comprobantes, newComp],
         detalles: [...s.detalles, ...newDets],
       };
     });
   }, []);
+
+  // Check if a production can be modified (edit/delete)
+  const canModifyProduccion = useCallback((id: string): { ok: boolean; reason?: string } => {
+    const prod = state.producciones.find(p => p.id === id);
+    if (!prod) return { ok: false, reason: 'Producción no encontrada.' };
+    
+    if (prod.estado === 'ANULADA' || prod.deleted_at) return { ok: false, reason: 'Esta producción ya fue anulada.' };
+    
+    if (prod.estado === 'BORRADOR') return { ok: true }; // Borradores se pueden modificar libremente
+    
+    if (isMesCerrado(prod.fecha)) return { ok: false, reason: 'El mes de esta producción está cerrado.' };
+    
+    // Check if this is the most recent confirmed production for this product
+    const confirmedForProduct = state.producciones
+      .filter(p => p.producto_id === prod.producto_id && p.estado === 'CONFIRMADA' && !p.deleted_at)
+      .sort((a, b) => a.fecha > b.fecha ? 1 : a.fecha < b.fecha ? -1 : 0);
+    
+    const lastConfirmed = confirmedForProduct[confirmedForProduct.length - 1];
+    if (lastConfirmed && lastConfirmed.id !== id) {
+      return { ok: false, reason: 'No se puede modificar esta producción porque existen producciones posteriores que afectarían el costo promedio.' };
+    }
+    
+    // Check for subsequent sales of this product after this production
+    const activeVentas = state.ventas.filter(v => v.producto_id === prod.producto_id && v.estado === 'ACTIVA' && !v.deleted_at && v.fecha >= prod.fecha);
+    if (activeVentas.length > 0) {
+      return { ok: false, reason: 'No se puede modificar esta producción porque existen ventas posteriores que afectarían el costo promedio.' };
+    }
+    
+    return { ok: true };
+  }, [state.producciones, state.ventas, isMesCerrado]);
+
+  // Eliminar producción (borrado lógico seguro)
+  const eliminarProduccion = useCallback((id: string): boolean => {
+    const check = canModifyProduccion(id);
+    if (!check.ok) { console.error('eliminarProduccion:', check.reason); return false; }
+    
+    const prod = state.producciones.find(p => p.id === id)!;
+    
+    if (prod.estado === 'BORRADOR') {
+      // Borrador: just mark as deleted, no stock/accounting impact
+      setState(s => ({
+        ...s,
+        producciones: s.producciones.map(p => p.id === id ? { ...p, estado: 'ANULADA' as const, deleted_at: new Date().toISOString() } : p),
+      }));
+      return true;
+    }
+    
+    // CONFIRMADA: revert stock and accounting
+    const stk = state.stock.find(s => s.producto_id === prod.producto_id);
+    if (!stk) return false;
+    
+    const newCant = stk.cantidad_actual - prod.cantidad_producida;
+    if (newCant < 0) { console.error('eliminarProduccion: stock quedaría negativo'); return false; }
+    
+    const now = new Date().toISOString();
+    setState(s => {
+      const newStock = s.stock.map(st => {
+        if (st.producto_id !== prod.producto_id) return st;
+        const nc = st.cantidad_actual - prod.cantidad_producida;
+        const nv = st.valor_actual - prod.costo_total_produccion;
+        return { ...st, cantidad_actual: nc, valor_actual: nv, costo_promedio: nc > 0 ? nv / nc : 0, updated_at: now };
+      });
+      return {
+        ...s,
+        stock: newStock,
+        producciones: s.producciones.map(p => p.id === id ? { ...p, estado: 'ANULADA' as const, deleted_at: now } : p),
+        comprobantes: s.comprobantes.map(c => c.id === prod.comprobante_id ? { ...c, deleted_at: now } : c),
+      };
+    });
+    return true;
+  }, [state.producciones, state.stock, canModifyProduccion]);
+
+  // Editar producción (revertir + reaplicar)
+  const editarProduccion = useCallback((id: string, data: { fecha: string; producto_id: string; cantidad_producida: number; costo_total_produccion: number }): boolean => {
+    const prod = state.producciones.find(p => p.id === id)!;
+    if (!prod) return false;
+    
+    if (prod.estado === 'BORRADOR') {
+      // Borrador: just update fields, no stock impact
+      const costo_unitario = data.cantidad_producida > 0 ? data.costo_total_produccion / data.cantidad_producida : 0;
+      setState(s => ({
+        ...s,
+        producciones: s.producciones.map(p => p.id === id ? { ...p, ...data, costo_unitario } : p),
+      }));
+      return true;
+    }
+    
+    // CONFIRMADA: check permissions
+    const check = canModifyProduccion(id);
+    if (!check.ok) { console.error('editarProduccion:', check.reason); return false; }
+    if (isMesCerrado(data.fecha)) { console.error('editarProduccion: mes destino cerrado'); return false; }
+    
+    const stk = state.stock.find(s => s.producto_id === prod.producto_id);
+    if (!stk) return false;
+    
+    // Simulate revert
+    const revertedCant = stk.cantidad_actual - prod.cantidad_producida;
+    if (revertedCant < 0) return false;
+    const revertedVal = stk.valor_actual - prod.costo_total_produccion;
+    
+    // Simulate apply new
+    const newCant = revertedCant + data.cantidad_producida;
+    const newVal = revertedVal + data.costo_total_produccion;
+    const costo_unitario = data.cantidad_producida > 0 ? data.costo_total_produccion / data.cantidad_producida : 0;
+    
+    const cInsumos = state.cuentas.find(c => c.codigo === 'A1.6');
+    const cProdTerm = state.cuentas.find(c => c.codigo === 'A1.7');
+    if (!cInsumos || !cProdTerm) return false;
+    
+    const newCompId = generateId();
+    const now = new Date().toISOString();
+    const numero = generateNumero(data.fecha, state.comprobantes.length);
+    const producto = state.productos.find(p => p.id === data.producto_id);
+    
+    const newComp: Comprobante = {
+      id: newCompId, numero, fecha: data.fecha,
+      glosa: `Producción (editada): ${producto?.nombre || ''} x${data.cantidad_producida}`,
+      estado: 'CONTABILIZADO', created_at: now, updated_at: now,
+    };
+    
+    const newDets: ComprobanteDetalle[] = [
+      { id: generateId(), comprobante_id: newCompId, cuenta_id: cProdTerm.id, descripcion: 'Inventario Producto Terminado', debe: data.costo_total_produccion, haber: 0 },
+      { id: generateId(), comprobante_id: newCompId, cuenta_id: cInsumos.id, descripcion: 'Inventario Insumos', debe: 0, haber: data.costo_total_produccion },
+    ];
+    
+    setState(s => {
+      const newStock = s.stock.map(st => {
+        if (st.producto_id !== prod.producto_id) return st;
+        return { ...st, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : 0, updated_at: now };
+      });
+      return {
+        ...s,
+        stock: newStock,
+        producciones: s.producciones.map(p => p.id === id ? { ...p, ...data, costo_unitario, comprobante_id: newCompId } : p),
+        comprobantes: [...s.comprobantes.map(c => c.id === prod.comprobante_id ? { ...c, deleted_at: now } : c), newComp],
+        detalles: [...s.detalles, ...newDets],
+      };
+    });
+    return true;
+  }, [state, canModifyProduccion, isMesCerrado]);
 
   const registrarVenta = useCallback((v: { fecha: string; producto_id: string; cantidad_vendida: number; total_venta: number; forma_cobro_cuenta_id: string }): string | null => {
     const stk = state.stock.find(s => s.producto_id === v.producto_id);
@@ -449,7 +592,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     ...state,
     addCuenta, updateCuenta,
     addComprobante, updateComprobante, deleteComprobante, contabilizar, pasarABorrador,
-    addProduccion, confirmarProduccion,
+    addProduccion, confirmarProduccion, eliminarProduccion, editarProduccion, canModifyProduccion,
     registrarVenta, eliminarVenta, editarVenta, updateStockMinimo,
     cerrarMes, reabrirMes, isMesCerrado,
     getCuenta, getCuentaByCodigo, getProducto, getStockForProducto,

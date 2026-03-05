@@ -3,7 +3,7 @@ export type TipoCuenta = 'ACTIVO' | 'PASIVO' | 'PATRIMONIO' | 'INGRESO' | 'GASTO
 export type Naturaleza = 'DEUDORA' | 'ACREEDORA';
 export type LadoContable = 'DEBE' | 'HABER';
 export type EstadoComprobante = 'BORRADOR' | 'CONTABILIZADO';
-export type EstadoProduccion = 'BORRADOR' | 'CONFIRMADA';
+export type EstadoProduccion = 'BORRADOR' | 'CONFIRMADA' | 'ANULADA';
 
 // ==================== TABLES ====================
 export interface Cuenta {
@@ -53,6 +53,8 @@ export interface Produccion {
   costo_total_produccion: number;
   costo_unitario: number;
   estado: EstadoProduccion;
+  comprobante_id?: string;
+  deleted_at?: string | null;
 }
 
 export interface StockProducto {
