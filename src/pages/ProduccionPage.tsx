@@ -60,7 +60,7 @@ export default function ProduccionPage() {
 
   const handleConfirmar = (id: string) => {
     confirmarProduccion(id);
-    toast.success("Producción confirmada y contabilizada");
+    toast.success("Producción confirmada — stock actualizado");
   };
 
   const handleEdit = (id: string) => {

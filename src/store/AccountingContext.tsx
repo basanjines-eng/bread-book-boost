@@ -213,7 +213,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
       const prod = s.producciones.find(p => p.id === id);
       if (!prod || prod.estado === 'CONFIRMADA') return s;
 
-      // Update stock
+      // Update stock only — production is an operational record, no accounting entries
       const newStock = s.stock.map(st => {
         if (st.producto_id !== prod.producto_id) return st;
         const newCant = st.cantidad_actual + prod.cantidad_producida;
@@ -227,33 +227,10 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         };
       });
 
-      // Create auto comprobante
-      const cInsumos = s.cuentas.find(c => c.codigo === 'A1.6');
-      const cProdTerm = s.cuentas.find(c => c.codigo === 'A1.7');
-      if (!cInsumos || !cProdTerm) return s;
-
-      const compId = generateId();
-      const now = new Date().toISOString();
-      const numero = generateNumero(prod.fecha, s.comprobantes.length);
-      const producto = s.productos.find(p => p.id === prod.producto_id);
-
-      const newComp: Comprobante = {
-        id: compId, numero, fecha: prod.fecha,
-        glosa: `Producción: ${producto?.nombre || ''} x${prod.cantidad_producida}`,
-        estado: 'CONTABILIZADO', created_at: now, updated_at: now,
-      };
-
-      const newDets: ComprobanteDetalle[] = [
-        { id: generateId(), comprobante_id: compId, cuenta_id: cProdTerm.id, descripcion: 'Inventario Producto Terminado', debe: prod.costo_total_produccion, haber: 0 },
-        { id: generateId(), comprobante_id: compId, cuenta_id: cInsumos.id, descripcion: 'Inventario Insumos', debe: 0, haber: prod.costo_total_produccion },
-      ];
-
       return {
         ...s,
-        producciones: s.producciones.map(p => p.id === id ? { ...p, estado: 'CONFIRMADA' as const, comprobante_id: compId } : p),
+        producciones: s.producciones.map(p => p.id === id ? { ...p, estado: 'CONFIRMADA' as const } : p),
         stock: newStock,
-        comprobantes: [...s.comprobantes, newComp],
-        detalles: [...s.detalles, ...newDets],
       };
     });
   }, []);
@@ -323,7 +300,6 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         ...s,
         stock: newStock,
         producciones: s.producciones.map(p => p.id === id ? { ...p, estado: 'ANULADA' as const, deleted_at: now } : p),
-        comprobantes: s.comprobantes.map(c => c.id === prod.comprobante_id ? { ...c, deleted_at: now } : c),
       };
     });
     return true;
@@ -362,25 +338,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     const newVal = revertedVal + data.costo_total_produccion;
     const costo_unitario = data.cantidad_producida > 0 ? data.costo_total_produccion / data.cantidad_producida : 0;
     
-    const cInsumos = state.cuentas.find(c => c.codigo === 'A1.6');
-    const cProdTerm = state.cuentas.find(c => c.codigo === 'A1.7');
-    if (!cInsumos || !cProdTerm) return false;
-    
-    const newCompId = generateId();
     const now = new Date().toISOString();
-    const numero = generateNumero(data.fecha, state.comprobantes.length);
-    const producto = state.productos.find(p => p.id === data.producto_id);
-    
-    const newComp: Comprobante = {
-      id: newCompId, numero, fecha: data.fecha,
-      glosa: `Producción (editada): ${producto?.nombre || ''} x${data.cantidad_producida}`,
-      estado: 'CONTABILIZADO', created_at: now, updated_at: now,
-    };
-    
-    const newDets: ComprobanteDetalle[] = [
-      { id: generateId(), comprobante_id: newCompId, cuenta_id: cProdTerm.id, descripcion: 'Inventario Producto Terminado', debe: data.costo_total_produccion, haber: 0 },
-      { id: generateId(), comprobante_id: newCompId, cuenta_id: cInsumos.id, descripcion: 'Inventario Insumos', debe: 0, haber: data.costo_total_produccion },
-    ];
     
     setState(s => {
       const newStock = s.stock.map(st => {
@@ -390,9 +348,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
       return {
         ...s,
         stock: newStock,
-        producciones: s.producciones.map(p => p.id === id ? { ...p, ...data, costo_unitario, comprobante_id: newCompId } : p),
-        comprobantes: [...s.comprobantes.map(c => c.id === prod.comprobante_id ? { ...c, deleted_at: now } : c), newComp],
-        detalles: [...s.detalles, ...newDets],
+        producciones: s.producciones.map(p => p.id === id ? { ...p, ...data, costo_unitario } : p),
       };
     });
     return true;
