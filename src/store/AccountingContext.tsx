@@ -113,9 +113,26 @@ function migrateProductionComprobantes(state: AccountingState): AccountingState 
   return state;
 }
 
+function migrateVentasCobros(state: AccountingState): AccountingState {
+  // Add cobros array to old ventas that only have forma_cobro_cuenta_id
+  let changed = false;
+  const ventas = state.ventas.map(v => {
+    if (!v.cobros || v.cobros.length === 0) {
+      changed = true;
+      return { ...v, cobros: [{ cuenta_id: v.forma_cobro_cuenta_id, monto: v.total_venta }] };
+    }
+    return v;
+  });
+  if (changed) {
+    console.log('PanConta: Migrated old ventas to multi-cobro format');
+    return { ...state, ventas };
+  }
+  return state;
+}
+
 function initState(): AccountingState {
   const saved = loadState();
-  if (saved && saved.cuentas?.length > 0) return migrateProductionComprobantes(saved);
+  if (saved && saved.cuentas?.length > 0) return migrateVentasCobros(migrateProductionComprobantes(saved));
   const cuentas = getInitialCuentas();
   const productos = getInitialProductos();
   const stock = getInitialStock(productos);
