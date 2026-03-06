@@ -69,6 +69,11 @@ export interface StockProducto {
 
 export type EstadoVenta = 'ACTIVA' | 'ANULADA';
 
+export interface VentaCobro {
+  cuenta_id: string;
+  monto: number;
+}
+
 export interface Venta {
   id: string;
   fecha: string;
@@ -79,7 +84,8 @@ export interface Venta {
   costo_unitario_aplicado: number;
   margen: number;
   margen_porcentaje: number;
-  forma_cobro_cuenta_id: string;
+  forma_cobro_cuenta_id: string; // kept for backward compat
+  cobros: VentaCobro[]; // multi-cobro distribution
   cuenta_ingreso_id: string;
   comprobante_id: string;
   estado: EstadoVenta;

@@ -9,21 +9,24 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { formatMoney, formatDate, today } from "@/lib/accounting";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { Pencil, Trash2, AlertTriangle, Plus, X } from "lucide-react";
+import type { VentaCobro } from "@/types/accounting";
+
+interface CobroLine {
+  cuenta_id: string;
+  monto: string;
+}
 
 export default function VentasPage() {
-  const { productos, cuentas, stock, ventas, getProducto, getCuenta, registrarVenta, eliminarVenta, editarVenta, getStockForProducto, isMesCerrado } = useAccounting();
+  const { productos, cuentas, ventas, getProducto, getCuenta, registrarVenta, eliminarVenta, editarVenta, getStockForProducto, isMesCerrado } = useAccounting();
 
   const [fecha, setFecha] = useState(today());
   const [productoId, setProductoId] = useState("");
   const [cantidad, setCantidad] = useState("");
   const [totalVenta, setTotalVenta] = useState("");
-  const [formaCobro, setFormaCobro] = useState("");
+  const [cobros, setCobros] = useState<CobroLine[]>([{ cuenta_id: "", monto: "" }]);
 
-  // Edit mode
   const [editingId, setEditingId] = useState<string | null>(null);
-
-  // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const cuentasCaja = cuentas.filter(c => c.es_caja_banco || c.codigo === 'A1.5');
@@ -34,21 +37,42 @@ export default function VentasPage() {
   const margen = totalNum - costoEst;
   const margenPct = totalNum > 0 ? (margen / totalNum) * 100 : 0;
 
-  const ventasActivas = ventas.filter(v => v.estado === 'ACTIVA' || !v.estado);
+  const totalDistribuido = cobros.reduce((s, c) => s + (parseFloat(c.monto) || 0), 0);
+  const diferencia = totalNum - totalDistribuido;
 
   const resetForm = () => {
-    setProductoId(""); setCantidad(""); setTotalVenta(""); setFormaCobro("");
+    setProductoId(""); setCantidad(""); setTotalVenta("");
+    setCobros([{ cuenta_id: "", monto: "" }]);
     setFecha(today());
     setEditingId(null);
   };
 
+  const addCobroLine = () => setCobros(prev => [...prev, { cuenta_id: "", monto: "" }]);
+  const removeCobroLine = (idx: number) => setCobros(prev => prev.filter((_, i) => i !== idx));
+  const updateCobro = (idx: number, field: keyof CobroLine, value: string) => {
+    setCobros(prev => prev.map((c, i) => i === idx ? { ...c, [field]: value } : c));
+  };
+
   const handleVenta = () => {
-    if (!productoId || !cantidad || !totalVenta || !formaCobro) {
+    if (!productoId || !cantidad || !totalVenta) {
       toast.error("Complete todos los campos"); return;
     }
 
+    const cobrosValidos = cobros.filter(c => c.cuenta_id && parseFloat(c.monto) > 0);
+    if (cobrosValidos.length === 0) {
+      toast.error("Agregue al menos una línea de cobro"); return;
+    }
+
+    if (Math.abs(diferencia) > 0.01) {
+      toast.error("La distribución del cobro debe ser igual al total de la venta"); return;
+    }
+
+    const cobrosData: VentaCobro[] = cobrosValidos.map(c => ({
+      cuenta_id: c.cuenta_id,
+      monto: parseFloat(c.monto),
+    }));
+
     if (editingId) {
-      // Edit mode - check mes cerrado first for better error message
       if (isMesCerrado(fecha)) {
         toast.error("No se puede editar: el mes de destino está cerrado.");
         return;
@@ -57,7 +81,7 @@ export default function VentasPage() {
         fecha, producto_id: productoId,
         cantidad_vendida: cantNum,
         total_venta: totalNum,
-        forma_cobro_cuenta_id: formaCobro,
+        cobros: cobrosData,
       });
       if (result) {
         toast.success("Venta actualizada correctamente");
@@ -66,7 +90,6 @@ export default function VentasPage() {
         toast.error("Error al editar. Revise la consola para más detalles.");
       }
     } else {
-      // New sale
       if (stk && cantNum > stk.cantidad_actual) {
         toast.error(`Stock insuficiente. Disponible: ${stk.cantidad_actual}`); return;
       }
@@ -74,7 +97,7 @@ export default function VentasPage() {
         fecha, producto_id: productoId,
         cantidad_vendida: cantNum,
         total_venta: totalNum,
-        forma_cobro_cuenta_id: formaCobro,
+        cobros: cobrosData,
       });
       if (result) {
         toast.success("Venta registrada y contabilizada");
@@ -94,7 +117,11 @@ export default function VentasPage() {
     setProductoId(v.producto_id);
     setCantidad(String(v.cantidad_vendida));
     setTotalVenta(String(v.total_venta));
-    setFormaCobro(v.forma_cobro_cuenta_id);
+    if (v.cobros && v.cobros.length > 0) {
+      setCobros(v.cobros.map(c => ({ cuenta_id: c.cuenta_id, monto: String(c.monto) })));
+    } else {
+      setCobros([{ cuenta_id: v.forma_cobro_cuenta_id, monto: String(v.total_venta) }]);
+    }
   };
 
   const handleDeleteConfirm = () => {
@@ -139,16 +166,53 @@ export default function VentasPage() {
             </div>
             <div><Label>Cantidad</Label><Input type="number" value={cantidad} onChange={e => setCantidad(e.target.value)} min="0" /></div>
             <div><Label>Total Venta (Bs)</Label><Input type="number" value={totalVenta} onChange={e => setTotalVenta(e.target.value)} min="0" /></div>
-            <div>
-              <Label>Forma de Cobro</Label>
-              <Select value={formaCobro} onValueChange={setFormaCobro}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                <SelectContent>
-                  {cuentasCaja.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+
+            {/* Distribución del cobro */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold">Distribución del cobro</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addCobroLine} className="h-7 text-xs">
+                  <Plus className="h-3 w-3 mr-1" /> Agregar
+                </Button>
+              </div>
+
+              {cobros.map((cobro, idx) => (
+                <div key={idx} className="flex gap-2 items-start">
+                  <div className="flex-1">
+                    <Select value={cobro.cuenta_id} onValueChange={val => updateCobro(idx, 'cuenta_id', val)}>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Cuenta" /></SelectTrigger>
+                      <SelectContent>
+                        {cuentasCaja.map(c => (
+                          <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Input
+                    type="number"
+                    value={cobro.monto}
+                    onChange={e => updateCobro(idx, 'monto', e.target.value)}
+                    placeholder="Monto"
+                    className="w-24 h-9 text-xs"
+                    min="0"
+                  />
+                  {cobros.length > 1 && (
+                    <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => removeCobroLine(idx)}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+
+              {totalNum > 0 && (
+                <div className="p-2 rounded bg-muted text-xs space-y-1">
+                  <div className="flex justify-between"><span>Total venta:</span><span>{formatMoney(totalNum)}</span></div>
+                  <div className="flex justify-between"><span>Total distribuido:</span><span>{formatMoney(totalDistribuido)}</span></div>
+                  <div className={`flex justify-between font-semibold ${Math.abs(diferencia) > 0.01 ? 'text-destructive' : 'text-success'}`}>
+                    <span>Diferencia:</span><span>{formatMoney(diferencia)}</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {cantNum > 0 && totalNum > 0 && (
@@ -160,7 +224,7 @@ export default function VentasPage() {
             )}
 
             <div className="flex gap-2">
-              <Button onClick={handleVenta} className="flex-1">
+              <Button onClick={handleVenta} className="flex-1" disabled={totalNum > 0 && Math.abs(diferencia) > 0.01}>
                 {editingId ? "Guardar Cambios" : "Registrar Venta"}
               </Button>
               {editingId && (
@@ -182,6 +246,7 @@ export default function VentasPage() {
                     <th className="text-left py-2">Producto</th>
                     <th className="text-right py-2">Cant.</th>
                     <th className="text-right py-2">Venta</th>
+                    <th className="text-left py-2">Cobro</th>
                     <th className="text-right py-2">Costo</th>
                     <th className="text-right py-2">Margen</th>
                     <th className="text-right py-2">%</th>
@@ -195,6 +260,17 @@ export default function VentasPage() {
                       <td className="py-2">{getProducto(v.producto_id)?.nombre}</td>
                       <td className="text-right py-2">{v.cantidad_vendida}</td>
                       <td className="text-right py-2">{formatMoney(v.total_venta)}</td>
+                      <td className="py-2 text-xs">
+                        {v.cobros && v.cobros.length > 1 ? (
+                          <div className="space-y-0.5">
+                            {v.cobros.map((c, i) => (
+                              <div key={i}>{getCuenta(c.cuenta_id)?.nombre}: {formatMoney(c.monto)}</div>
+                            ))}
+                          </div>
+                        ) : (
+                          getCuenta(v.cobros?.[0]?.cuenta_id || v.forma_cobro_cuenta_id)?.nombre || '-'
+                        )}
+                      </td>
                       <td className="text-right py-2">{formatMoney(v.costo_total_venta)}</td>
                       <td className={`text-right py-2 ${v.margen >= 0 ? 'text-success' : 'text-destructive'}`}>{formatMoney(v.margen)}</td>
                       <td className="text-right py-2">{v.margen_porcentaje.toFixed(1)}%</td>
@@ -242,6 +318,10 @@ export default function VentasPage() {
               <p><strong>Producto:</strong> {getProducto(deleteVenta.producto_id)?.nombre}</p>
               <p><strong>Cantidad:</strong> {deleteVenta.cantidad_vendida}</p>
               <p><strong>Total venta:</strong> {formatMoney(deleteVenta.total_venta)}</p>
+              <p><strong>Distribución del cobro:</strong></p>
+              {deleteVenta.cobros?.map((c, i) => (
+                <p key={i} className="ml-2">• {getCuenta(c.cuenta_id)?.nombre}: {formatMoney(c.monto)}</p>
+              ))}
               <p><strong>Costo:</strong> {formatMoney(deleteVenta.costo_total_venta)}</p>
               <p className="text-xs text-muted-foreground mt-2">Se devolverán {deleteVenta.cantidad_vendida} unidades al stock con valor de {formatMoney(deleteVenta.costo_total_venta)}.</p>
             </div>
