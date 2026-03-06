@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type {
   Cuenta, Comprobante, ComprobanteDetalle, Producto,
-  Produccion, StockProducto, Venta, CierreMensual, EstadoVenta
+  Produccion, StockProducto, Venta, VentaCobro, CierreMensual, EstadoVenta
 } from '@/types/accounting';
 import {
   generateId, generateNumero, today,
