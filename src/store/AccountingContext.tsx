@@ -37,9 +37,9 @@ interface AccountingContextType extends AccountingState {
   editarProduccion: (id: string, data: { fecha: string; producto_id: string; cantidad_producida: number; costo_total_produccion: number }) => boolean;
   canModifyProduccion: (id: string) => { ok: boolean; reason?: string };
   // Ventas
-  registrarVenta: (v: { fecha: string; producto_id: string; cantidad_vendida: number; total_venta: number; forma_cobro_cuenta_id: string }) => string | null;
+  registrarVenta: (v: { fecha: string; producto_id: string; cantidad_vendida: number; total_venta: number; cobros: VentaCobro[] }) => string | null;
   eliminarVenta: (id: string) => boolean;
-  editarVenta: (id: string, v: { fecha: string; producto_id: string; cantidad_vendida: number; total_venta: number; forma_cobro_cuenta_id: string }) => boolean;
+  editarVenta: (id: string, v: { fecha: string; producto_id: string; cantidad_vendida: number; total_venta: number; cobros: VentaCobro[] }) => boolean;
   // Stock
   updateStockMinimo: (producto_id: string, minimo: number) => void;
   // Cierres
@@ -354,12 +354,16 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     return true;
   }, [state, canModifyProduccion, isMesCerrado]);
 
-  const registrarVenta = useCallback((v: { fecha: string; producto_id: string; cantidad_vendida: number; total_venta: number; forma_cobro_cuenta_id: string }): string | null => {
+  const registrarVenta = useCallback((v: { fecha: string; producto_id: string; cantidad_vendida: number; total_venta: number; cobros: VentaCobro[] }): string | null => {
     const stk = state.stock.find(s => s.producto_id === v.producto_id);
     if (!stk || stk.cantidad_actual < v.cantidad_vendida) return null;
 
     const producto = state.productos.find(p => p.id === v.producto_id);
     if (!producto) return null;
+
+    // Validate cobros sum
+    const totalCobros = v.cobros.reduce((s, c) => s + c.monto, 0);
+    if (Math.abs(totalCobros - v.total_venta) > 0.01) return null;
 
     const costoTotal = stk.costo_promedio * v.cantidad_vendida;
     const margen = v.total_venta - costoTotal;
@@ -382,8 +386,12 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
       estado: 'CONTABILIZADO', created_at: now, updated_at: now,
     };
 
+    // Build detalles: one DEBE per cobro destination
     const newDets: ComprobanteDetalle[] = [
-      { id: generateId(), comprobante_id: compId, cuenta_id: v.forma_cobro_cuenta_id, descripcion: `Cobro venta ${producto.nombre}`, debe: v.total_venta, haber: 0 },
+      ...v.cobros.map(cobro => ({
+        id: generateId(), comprobante_id: compId, cuenta_id: cobro.cuenta_id,
+        descripcion: `Cobro venta ${producto.nombre}`, debe: cobro.monto, haber: 0,
+      })),
       { id: generateId(), comprobante_id: compId, cuenta_id: cIngreso.id, descripcion: `Ingreso venta ${producto.nombre}`, debe: 0, haber: v.total_venta },
       { id: generateId(), comprobante_id: compId, cuenta_id: cCostoVentas.id, descripcion: `Costo de ventas ${producto.nombre}`, debe: costoTotal, haber: 0 },
       { id: generateId(), comprobante_id: compId, cuenta_id: cProdTerm.id, descripcion: `Salida inventario ${producto.nombre}`, debe: 0, haber: costoTotal },
@@ -394,7 +402,8 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
       cantidad_vendida: v.cantidad_vendida, total_venta: v.total_venta,
       costo_total_venta: costoTotal, costo_unitario_aplicado: stk.costo_promedio,
       margen, margen_porcentaje: margenPct,
-      forma_cobro_cuenta_id: v.forma_cobro_cuenta_id,
+      forma_cobro_cuenta_id: v.cobros[0]?.cuenta_id || '',
+      cobros: v.cobros,
       cuenta_ingreso_id: cIngreso.id, comprobante_id: compId,
       estado: 'ACTIVA',
     };
@@ -455,34 +464,34 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     return true;
   }, [state.ventas, isMesCerrado]);
 
-  // Editar venta (revertir + reaplicar)
-  const editarVenta = useCallback((id: string, v: { fecha: string; producto_id: string; cantidad_vendida: number; total_venta: number; forma_cobro_cuenta_id: string }): boolean => {
+  // Editar venta (revertir + reaplicar) with multi-cobro
+  const editarVenta = useCallback((id: string, v: { fecha: string; producto_id: string; cantidad_vendida: number; total_venta: number; cobros: VentaCobro[] }): boolean => {
     const ventaOriginal = state.ventas.find(vt => vt.id === id && (vt.estado === 'ACTIVA' || !vt.estado));
     if (!ventaOriginal) { console.error('editarVenta: venta no encontrada o no activa', id); return false; }
     if (isMesCerrado(ventaOriginal.fecha) || isMesCerrado(v.fecha)) { console.error('editarVenta: mes cerrado'); return false; }
 
-    // Simulate stock after reverting original
-    const stkOrig = state.stock.find(s => s.producto_id === ventaOriginal.producto_id);
-    if (!stkOrig) { console.error('editarVenta: stock no encontrado para producto original', ventaOriginal.producto_id); return false; }
+    // Validate cobros sum
+    const totalCobros = v.cobros.reduce((s, c) => s + c.monto, 0);
+    if (Math.abs(totalCobros - v.total_venta) > 0.01) { console.error('editarVenta: cobros no cuadran'); return false; }
 
-    // Revert original stock
+    const stkOrig = state.stock.find(s => s.producto_id === ventaOriginal.producto_id);
+    if (!stkOrig) { console.error('editarVenta: stock no encontrado para producto original'); return false; }
+
     let revertedCant = stkOrig.cantidad_actual + ventaOriginal.cantidad_vendida;
     let revertedVal = stkOrig.valor_actual + ventaOriginal.costo_total_venta;
     let revertedCPP = revertedCant > 0 ? revertedVal / revertedCant : 0;
 
-    // If product changed, handle both stocks
     if (v.producto_id !== ventaOriginal.producto_id) {
       const stkNew = state.stock.find(s => s.producto_id === v.producto_id);
-      if (!stkNew) { console.error('editarVenta: stock no encontrado para nuevo producto'); return false; }
-      if (v.cantidad_vendida > stkNew.cantidad_actual) { console.error('editarVenta: stock insuficiente nuevo producto'); return false; }
+      if (!stkNew) return false;
+      if (v.cantidad_vendida > stkNew.cantidad_actual) return false;
     } else {
-      if (v.cantidad_vendida > revertedCant) { console.error('editarVenta: stock insuficiente tras revertir'); return false; }
+      if (v.cantidad_vendida > revertedCant) return false;
     }
 
     const producto = state.productos.find(p => p.id === v.producto_id);
     if (!producto) return false;
 
-    // Calculate new cost based on (possibly reverted) stock
     let newCPP: number;
     if (v.producto_id === ventaOriginal.producto_id) {
       newCPP = revertedCPP;
@@ -512,14 +521,16 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     };
 
     const newDets: ComprobanteDetalle[] = [
-      { id: generateId(), comprobante_id: newCompId, cuenta_id: v.forma_cobro_cuenta_id, descripcion: `Cobro venta ${producto.nombre}`, debe: v.total_venta, haber: 0 },
+      ...v.cobros.map(cobro => ({
+        id: generateId(), comprobante_id: newCompId, cuenta_id: cobro.cuenta_id,
+        descripcion: `Cobro venta ${producto.nombre}`, debe: cobro.monto, haber: 0,
+      })),
       { id: generateId(), comprobante_id: newCompId, cuenta_id: cIngreso.id, descripcion: `Ingreso venta ${producto.nombre}`, debe: 0, haber: v.total_venta },
       { id: generateId(), comprobante_id: newCompId, cuenta_id: cCostoVentas.id, descripcion: `Costo de ventas ${producto.nombre}`, debe: costoTotal, haber: 0 },
       { id: generateId(), comprobante_id: newCompId, cuenta_id: cProdTerm.id, descripcion: `Salida inventario ${producto.nombre}`, debe: 0, haber: costoTotal },
     ];
 
     setState(s => {
-      // Revert original product stock
       let newStock = s.stock.map(st => {
         if (st.producto_id !== ventaOriginal.producto_id) return st;
         const nc = st.cantidad_actual + ventaOriginal.cantidad_vendida;
@@ -527,7 +538,6 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         return { ...st, cantidad_actual: nc, valor_actual: nv, costo_promedio: nc > 0 ? nv / nc : 0, updated_at: now };
       });
 
-      // Apply new sale stock deduction
       newStock = newStock.map(st => {
         if (st.producto_id !== v.producto_id) return st;
         const nc = st.cantidad_actual - v.cantidad_vendida;
@@ -538,7 +548,6 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
       return {
         ...s,
         stock: newStock,
-        // Soft-delete old comprobante
         comprobantes: [...s.comprobantes.map(c => c.id === ventaOriginal.comprobante_id ? { ...c, deleted_at: now } : c), newComp],
         detalles: [...s.detalles, ...newDets],
         ventas: s.ventas.map(vt => vt.id === id ? {
@@ -551,7 +560,8 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
           costo_unitario_aplicado: newCPP,
           margen,
           margen_porcentaje: margenPct,
-          forma_cobro_cuenta_id: v.forma_cobro_cuenta_id,
+          forma_cobro_cuenta_id: v.cobros[0]?.cuenta_id || '',
+          cobros: v.cobros,
           cuenta_ingreso_id: cIngreso.id,
           comprobante_id: newCompId,
         } : vt),
