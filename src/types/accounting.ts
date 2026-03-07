@@ -4,6 +4,8 @@ export type Naturaleza = 'DEUDORA' | 'ACREEDORA';
 export type LadoContable = 'DEBE' | 'HABER';
 export type EstadoComprobante = 'BORRADOR' | 'CONTABILIZADO';
 export type EstadoProduccion = 'BORRADOR' | 'CONFIRMADA' | 'ANULADA';
+export type TipoMovimientoInsumo = 'ENTRADA' | 'SALIDA' | 'AJUSTE';
+export type CategoriaInsumo = 'Ingredientes' | 'Combustible' | 'Empaque' | 'Otros ingredientes';
 
 // ==================== TABLES ====================
 export interface Cuenta {
@@ -21,7 +23,7 @@ export interface Cuenta {
 export interface Comprobante {
   id: string;
   numero: string;
-  fecha: string; // ISO date
+  fecha: string;
   glosa: string;
   referencia?: string;
   estado: EstadoComprobante;
@@ -45,11 +47,83 @@ export interface Producto {
   activo: boolean;
 }
 
+// ==================== INSUMOS ====================
+export interface Insumo {
+  id: string;
+  nombre: string;
+  categoria: CategoriaInsumo;
+  unidad_base: string;
+  unidad_compra_habitual: string;
+  equivalencia_compra: number;
+  stock_minimo: number;
+  stock_ideal: number;
+  precio_unitario_referencia: number;
+  proveedor_habitual: string;
+  observaciones: string;
+  activo: boolean;
+  deleted_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StockInsumo {
+  id: string;
+  insumo_id: string;
+  cantidad_actual: number;
+  valor_actual: number;
+  costo_promedio: number;
+  updated_at: string;
+}
+
+export interface MovimientoInsumo {
+  id: string;
+  fecha: string;
+  fecha_compra?: string;
+  insumo_id: string;
+  tipo_movimiento: TipoMovimientoInsumo;
+  cantidad: number;
+  unidad_movimiento: string;
+  cantidad_equivalente_base: number;
+  precio_unitario: number;
+  costo_total: number;
+  motivo: string;
+  proveedor: string;
+  referencia: string;
+  observacion: string;
+  deleted_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ==================== RECETAS ====================
+export interface Receta {
+  id: string;
+  producto_id: string;
+  nombre_receta: string;
+  activo: boolean;
+  deleted_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RecetaInsumo {
+  id: string;
+  receta_id: string;
+  insumo_id: string;
+  cantidad_usada: number;
+  unidad_medida: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ==================== PRODUCCION ====================
 export interface Produccion {
   id: string;
   fecha: string;
   producto_id: string;
-  cantidad_producida: number;
+  receta_id?: string;
+  cantidad_lotes: number;
+  cantidad_producida: number; // cantidad_real_obtenida
   costo_total_produccion: number;
   costo_unitario: number;
   estado: EstadoProduccion;
@@ -84,8 +158,8 @@ export interface Venta {
   costo_unitario_aplicado: number;
   margen: number;
   margen_porcentaje: number;
-  forma_cobro_cuenta_id: string; // kept for backward compat
-  cobros: VentaCobro[]; // multi-cobro distribution
+  forma_cobro_cuenta_id: string;
+  cobros: VentaCobro[];
   cuenta_ingreso_id: string;
   comprobante_id: string;
   estado: EstadoVenta;
