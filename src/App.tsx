@@ -11,6 +11,8 @@ import LibroDiario from "./pages/LibroDiario";
 import VentasPage from "./pages/VentasPage";
 import ProduccionPage from "./pages/ProduccionPage";
 import StockPage from "./pages/StockPage";
+import InsumosPage from "./pages/InsumosPage";
+import RecetasPage from "./pages/RecetasPage";
 import FlujoCajaPage from "./pages/FlujoCajaPage";
 import LibroMayorPage from "./pages/LibroMayorPage";
 import ReportesPage from "./pages/ReportesPage";
@@ -32,6 +34,8 @@ const App = () => (
               <Route path="/" element={<Dashboard />} />
               <Route path="/plan-cuentas" element={<PlanCuentas />} />
               <Route path="/libro-diario" element={<LibroDiario />} />
+              <Route path="/insumos" element={<InsumosPage />} />
+              <Route path="/recetas" element={<RecetasPage />} />
               <Route path="/ventas" element={<VentasPage />} />
               <Route path="/produccion" element={<ProduccionPage />} />
               <Route path="/stock" element={<StockPage />} />

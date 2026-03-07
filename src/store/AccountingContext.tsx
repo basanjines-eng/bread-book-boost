@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type {
   Cuenta, Comprobante, ComprobanteDetalle, Producto,
-  Produccion, StockProducto, Venta, VentaCobro, CierreMensual, EstadoVenta
+  Produccion, StockProducto, Venta, VentaCobro, CierreMensual, EstadoVenta,
+  Insumo, StockInsumo, MovimientoInsumo, Receta, RecetaInsumo,
 } from '@/types/accounting';
 import {
   generateId, generateNumero, today,
   getInitialCuentas, getInitialProductos, getInitialStock,
-  getCuentaIngresoForProducto
+  getCuentaIngresoForProducto, getInitialInsumos, getInitialStockInsumos,
 } from '@/lib/accounting';
 
 interface AccountingState {
@@ -18,6 +19,11 @@ interface AccountingState {
   stock: StockProducto[];
   ventas: Venta[];
   cierres: CierreMensual[];
+  insumos: Insumo[];
+  stockInsumos: StockInsumo[];
+  movimientosInsumos: MovimientoInsumo[];
+  recetas: Receta[];
+  recetaInsumos: RecetaInsumo[];
 }
 
 interface AccountingContextType extends AccountingState {
@@ -30,11 +36,25 @@ interface AccountingContextType extends AccountingState {
   deleteComprobante: (id: string) => void;
   contabilizar: (id: string) => boolean;
   pasarABorrador: (id: string) => void;
+  // Insumos
+  addInsumo: (i: Omit<Insumo, 'id' | 'created_at' | 'updated_at'>) => void;
+  updateInsumo: (i: Insumo) => void;
+  deleteInsumo: (id: string) => void;
+  // Movimientos Insumos
+  addMovimientoInsumo: (m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>) => void;
+  editMovimientoInsumo: (id: string, m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>) => boolean;
+  deleteMovimientoInsumo: (id: string) => boolean;
+  // Recetas
+  addReceta: (r: Omit<Receta, 'id' | 'created_at' | 'updated_at'>, ingredientes: Omit<RecetaInsumo, 'id' | 'receta_id' | 'created_at' | 'updated_at'>[]) => string;
+  updateReceta: (id: string, r: Partial<Omit<Receta, 'id'>>, ingredientes: Omit<RecetaInsumo, 'id' | 'receta_id' | 'created_at' | 'updated_at'>[]) => void;
+  deleteReceta: (id: string) => void;
+  getRecetaInsumos: (recetaId: string) => RecetaInsumo[];
+  calcularCostoReceta: (recetaId: string) => number;
   // Produccion
-  addProduccion: (p: Omit<Produccion, 'id' | 'costo_unitario'>) => void;
-  confirmarProduccion: (id: string) => void;
+  addProduccion: (p: Omit<Produccion, 'id' | 'costo_unitario' | 'costo_total_produccion'>) => void;
+  confirmarProduccion: (id: string) => boolean;
   eliminarProduccion: (id: string) => boolean;
-  editarProduccion: (id: string, data: { fecha: string; producto_id: string; cantidad_producida: number; costo_total_produccion: number }) => boolean;
+  editarProduccion: (id: string, data: { fecha: string; producto_id: string; receta_id?: string; cantidad_lotes: number; cantidad_producida: number }) => boolean;
   canModifyProduccion: (id: string) => { ok: boolean; reason?: string };
   // Ventas
   registrarVenta: (v: { fecha: string; producto_id: string; cantidad_vendida: number; total_venta: number; cobros: VentaCobro[] }) => string | null;
@@ -50,7 +70,9 @@ interface AccountingContextType extends AccountingState {
   getCuenta: (id: string) => Cuenta | undefined;
   getCuentaByCodigo: (codigo: string) => Cuenta | undefined;
   getProducto: (id: string) => Producto | undefined;
+  getInsumo: (id: string) => Insumo | undefined;
   getStockForProducto: (producto_id: string) => StockProducto | undefined;
+  getStockForInsumo: (insumo_id: string) => StockInsumo | undefined;
   getDetallesForComprobante: (comprobante_id: string) => ComprobanteDetalle[];
   getComprobantesContabilizados: () => Comprobante[];
   getDetallesContabilizados: () => ComprobanteDetalle[];
@@ -72,49 +94,7 @@ function saveState(state: AccountingState) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
-function migrateProductionComprobantes(state: AccountingState): AccountingState {
-  // Fix old production comprobantes that incorrectly used INGRESO/GASTO accounts
-  // Production should ONLY touch A1.7 (Debe) and A1.6 (Haber) — both ACTIVO
-  const cInsumos = state.cuentas.find(c => c.codigo === 'A1.6');
-  const cProdTerm = state.cuentas.find(c => c.codigo === 'A1.7');
-  if (!cInsumos || !cProdTerm) return state;
-
-  const ingresoGastoIds = new Set(
-    state.cuentas.filter(c => c.tipo === 'INGRESO' || c.tipo === 'GASTO' || c.tipo === 'PATRIMONIO').map(c => c.id)
-  );
-
-  // Find production comprobantes by matching glosa pattern
-  const prodComprobanteIds = new Set(
-    state.producciones
-      .filter(p => p.comprobante_id && p.estado === 'CONFIRMADA' && !p.deleted_at)
-      .map(p => p.comprobante_id!)
-  );
-
-  let needsFix = false;
-  const fixedDetalles = state.detalles.map(d => {
-    if (!prodComprobanteIds.has(d.comprobante_id)) return d;
-    // Check if this detail incorrectly uses an INGRESO/GASTO/PATRIMONIO account
-    if (ingresoGastoIds.has(d.cuenta_id)) {
-      needsFix = true;
-      // Replace: if it was a Debe entry, it should be A1.7; if Haber, it should be A1.6
-      if (d.debe > 0) {
-        return { ...d, cuenta_id: cProdTerm.id, descripcion: 'Inventario Producto Terminado' };
-      } else {
-        return { ...d, cuenta_id: cInsumos.id, descripcion: 'Inventario Insumos' };
-      }
-    }
-    return d;
-  });
-
-  if (needsFix) {
-    console.log('PanConta: Migrated old production comprobantes to correct accounts (A1.6/A1.7 only)');
-    return { ...state, detalles: fixedDetalles };
-  }
-  return state;
-}
-
 function migrateVentasCobros(state: AccountingState): AccountingState {
-  // Add cobros array to old ventas that only have forma_cobro_cuenta_id
   let changed = false;
   const ventas = state.ventas.map(v => {
     if (!v.cobros || v.cobros.length === 0) {
@@ -123,20 +103,44 @@ function migrateVentasCobros(state: AccountingState): AccountingState {
     }
     return v;
   });
-  if (changed) {
-    console.log('PanConta: Migrated old ventas to multi-cobro format');
-    return { ...state, ventas };
-  }
+  if (changed) return { ...state, ventas };
   return state;
+}
+
+function migrateInsumos(state: AccountingState): AccountingState {
+  if (state.insumos && state.insumos.length > 0) return state;
+  const insumos = getInitialInsumos();
+  const stockInsumos = getInitialStockInsumos(insumos);
+  return {
+    ...state,
+    insumos,
+    stockInsumos,
+    movimientosInsumos: state.movimientosInsumos || [],
+    recetas: state.recetas || [],
+    recetaInsumos: state.recetaInsumos || [],
+  };
 }
 
 function initState(): AccountingState {
   const saved = loadState();
-  if (saved && saved.cuentas?.length > 0) return migrateVentasCobros(migrateProductionComprobantes(saved));
+  if (saved && saved.cuentas?.length > 0) {
+    let s = migrateVentasCobros(saved);
+    s = migrateInsumos(s);
+    // Ensure arrays exist
+    if (!s.recetas) s.recetas = [];
+    if (!s.recetaInsumos) s.recetaInsumos = [];
+    if (!s.movimientosInsumos) s.movimientosInsumos = [];
+    return s;
+  }
   const cuentas = getInitialCuentas();
   const productos = getInitialProductos();
   const stock = getInitialStock(productos);
-  return { cuentas, comprobantes: [], detalles: [], productos, producciones: [], stock, ventas: [], cierres: [] };
+  const insumos = getInitialInsumos();
+  const stockInsumos = getInitialStockInsumos(insumos);
+  return {
+    cuentas, comprobantes: [], detalles: [], productos, producciones: [], stock, ventas: [], cierres: [],
+    insumos, stockInsumos, movimientosInsumos: [], recetas: [], recetaInsumos: [],
+  };
 }
 
 export function AccountingProvider({ children }: { children: React.ReactNode }) {
@@ -147,7 +151,9 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
   const getCuenta = useCallback((id: string) => state.cuentas.find(c => c.id === id), [state.cuentas]);
   const getCuentaByCodigo = useCallback((codigo: string) => state.cuentas.find(c => c.codigo === codigo), [state.cuentas]);
   const getProducto = useCallback((id: string) => state.productos.find(p => p.id === id), [state.productos]);
+  const getInsumo = useCallback((id: string) => state.insumos.find(i => i.id === id && !i.deleted_at), [state.insumos]);
   const getStockForProducto = useCallback((pid: string) => state.stock.find(s => s.producto_id === pid), [state.stock]);
+  const getStockForInsumo = useCallback((iid: string) => state.stockInsumos.find(s => s.insumo_id === iid), [state.stockInsumos]);
   const getDetallesForComprobante = useCallback((cid: string) => state.detalles.filter(d => d.comprobante_id === cid), [state.detalles]);
 
   const getComprobantesContabilizados = useCallback(() =>
@@ -163,6 +169,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     return state.cierres.some(c => c.anio === d.getFullYear() && c.mes === d.getMonth() + 1 && c.cerrado);
   }, [state.cierres]);
 
+  // ==================== CUENTAS ====================
   const addCuenta = useCallback((c: Omit<Cuenta, 'id'>) => {
     setState(s => ({ ...s, cuentas: [...s.cuentas, { ...c, id: generateId() }] }));
   }, []);
@@ -171,6 +178,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     setState(s => ({ ...s, cuentas: s.cuentas.map(x => x.id === c.id ? c : x) }));
   }, []);
 
+  // ==================== COMPROBANTES ====================
   const addComprobante = useCallback((comp: Omit<Comprobante, 'id' | 'numero' | 'created_at' | 'updated_at'>, dets: Omit<ComprobanteDetalle, 'id' | 'comprobante_id'>[]) => {
     const id = generateId();
     const now = new Date().toISOString();
@@ -204,8 +212,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     const dets = state.detalles.filter(d => d.comprobante_id === id);
     const totalDebe = dets.reduce((s, d) => s + d.debe, 0);
     const totalHaber = dets.reduce((s, d) => s + d.haber, 0);
-    if (Math.abs(totalDebe - totalHaber) > 0.01) return false;
-    if (dets.length === 0) return false;
+    if (Math.abs(totalDebe - totalHaber) > 0.01 || dets.length === 0) return false;
     setState(s => ({
       ...s,
       comprobantes: s.comprobantes.map(c => c.id === id ? { ...c, estado: 'CONTABILIZADO', updated_at: new Date().toISOString() } : c),
@@ -220,91 +227,275 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     }));
   }, []);
 
-  const addProduccion = useCallback((p: Omit<Produccion, 'id' | 'costo_unitario'>) => {
-    const costo_unitario = p.cantidad_producida > 0 ? p.costo_total_produccion / p.cantidad_producida : 0;
-    setState(s => ({ ...s, producciones: [...s.producciones, { ...p, id: generateId(), costo_unitario }] }));
+  // ==================== INSUMOS ====================
+  const addInsumo = useCallback((i: Omit<Insumo, 'id' | 'created_at' | 'updated_at'>) => {
+    const now = new Date().toISOString();
+    const id = generateId();
+    setState(s => ({
+      ...s,
+      insumos: [...s.insumos, { ...i, id, created_at: now, updated_at: now }],
+      stockInsumos: [...s.stockInsumos, { id: generateId(), insumo_id: id, cantidad_actual: 0, valor_actual: 0, costo_promedio: 0, updated_at: now }],
+    }));
   }, []);
 
-  const confirmarProduccion = useCallback((id: string) => {
-    setState(s => {
-      const prod = s.producciones.find(p => p.id === id);
-      if (!prod || prod.estado === 'CONFIRMADA') return s;
+  const updateInsumo = useCallback((i: Insumo) => {
+    setState(s => ({
+      ...s,
+      insumos: s.insumos.map(x => x.id === i.id ? { ...i, updated_at: new Date().toISOString() } : x),
+    }));
+  }, []);
 
-      // Update stock only — production is an operational record, no accounting entries
+  const deleteInsumo = useCallback((id: string) => {
+    setState(s => ({
+      ...s,
+      insumos: s.insumos.map(i => i.id === id ? { ...i, deleted_at: new Date().toISOString(), activo: false } : i),
+    }));
+  }, []);
+
+  // ==================== MOVIMIENTOS INSUMOS ====================
+  const applyMovimiento = (stk: StockInsumo, m: { tipo_movimiento: string; cantidad_equivalente_base: number; costo_total: number }): StockInsumo => {
+    const now = new Date().toISOString();
+    if (m.tipo_movimiento === 'ENTRADA') {
+      const nc = stk.cantidad_actual + m.cantidad_equivalente_base;
+      const nv = stk.valor_actual + m.costo_total;
+      return { ...stk, cantidad_actual: nc, valor_actual: nv, costo_promedio: nc > 0 ? nv / nc : 0, updated_at: now };
+    } else if (m.tipo_movimiento === 'SALIDA') {
+      const nc = stk.cantidad_actual - m.cantidad_equivalente_base;
+      const nv = stk.valor_actual - (m.cantidad_equivalente_base * stk.costo_promedio);
+      return { ...stk, cantidad_actual: Math.max(0, nc), valor_actual: Math.max(0, nv), costo_promedio: nc > 0 ? Math.max(0, nv) / nc : 0, updated_at: now };
+    } else {
+      // AJUSTE
+      const nc = stk.cantidad_actual + m.cantidad_equivalente_base; // can be negative for "baja"
+      const nv = nc > 0 ? nc * stk.costo_promedio : 0;
+      return { ...stk, cantidad_actual: Math.max(0, nc), valor_actual: Math.max(0, nv), updated_at: now };
+    }
+  };
+
+  const revertMovimiento = (stk: StockInsumo, m: { tipo_movimiento: string; cantidad_equivalente_base: number; costo_total: number }): StockInsumo => {
+    const now = new Date().toISOString();
+    if (m.tipo_movimiento === 'ENTRADA') {
+      const nc = stk.cantidad_actual - m.cantidad_equivalente_base;
+      const nv = stk.valor_actual - m.costo_total;
+      return { ...stk, cantidad_actual: Math.max(0, nc), valor_actual: Math.max(0, nv), costo_promedio: nc > 0 ? Math.max(0, nv) / nc : 0, updated_at: now };
+    } else if (m.tipo_movimiento === 'SALIDA') {
+      const nc = stk.cantidad_actual + m.cantidad_equivalente_base;
+      const nv = stk.valor_actual + (m.cantidad_equivalente_base * stk.costo_promedio);
+      return { ...stk, cantidad_actual: nc, valor_actual: nv, costo_promedio: nc > 0 ? nv / nc : 0, updated_at: now };
+    } else {
+      const nc = stk.cantidad_actual - m.cantidad_equivalente_base;
+      const nv = nc > 0 ? nc * stk.costo_promedio : 0;
+      return { ...stk, cantidad_actual: Math.max(0, nc), valor_actual: Math.max(0, nv), updated_at: now };
+    }
+  };
+
+  const addMovimientoInsumo = useCallback((m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>) => {
+    const now = new Date().toISOString();
+    const id = generateId();
+    setState(s => {
+      const newStockInsumos = s.stockInsumos.map(stk => {
+        if (stk.insumo_id !== m.insumo_id) return stk;
+        return applyMovimiento(stk, m);
+      });
+      return {
+        ...s,
+        movimientosInsumos: [...s.movimientosInsumos, { ...m, id, created_at: now, updated_at: now }],
+        stockInsumos: newStockInsumos,
+      };
+    });
+  }, []);
+
+  const editMovimientoInsumo = useCallback((id: string, m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>): boolean => {
+    const orig = state.movimientosInsumos.find(x => x.id === id && !x.deleted_at);
+    if (!orig) return false;
+    // Check no subsequent movimientos
+    const subsequent = state.movimientosInsumos.filter(x => x.insumo_id === orig.insumo_id && !x.deleted_at && x.id !== id && x.created_at > orig.created_at);
+    if (subsequent.length > 0) return false;
+    const now = new Date().toISOString();
+    setState(s => {
+      let newStockInsumos = s.stockInsumos.map(stk => {
+        if (stk.insumo_id !== orig.insumo_id) return stk;
+        return revertMovimiento(stk, orig);
+      });
+      newStockInsumos = newStockInsumos.map(stk => {
+        if (stk.insumo_id !== m.insumo_id) return stk;
+        return applyMovimiento(stk, m);
+      });
+      return {
+        ...s,
+        movimientosInsumos: s.movimientosInsumos.map(x => x.id === id ? { ...m, id, created_at: orig.created_at, updated_at: now } : x),
+        stockInsumos: newStockInsumos,
+      };
+    });
+    return true;
+  }, [state.movimientosInsumos]);
+
+  const deleteMovimientoInsumo = useCallback((id: string): boolean => {
+    const orig = state.movimientosInsumos.find(x => x.id === id && !x.deleted_at);
+    if (!orig) return false;
+    const subsequent = state.movimientosInsumos.filter(x => x.insumo_id === orig.insumo_id && !x.deleted_at && x.id !== id && x.created_at > orig.created_at);
+    if (subsequent.length > 0) return false;
+    const now = new Date().toISOString();
+    setState(s => {
+      const newStockInsumos = s.stockInsumos.map(stk => {
+        if (stk.insumo_id !== orig.insumo_id) return stk;
+        return revertMovimiento(stk, orig);
+      });
+      return {
+        ...s,
+        movimientosInsumos: s.movimientosInsumos.map(x => x.id === id ? { ...x, deleted_at: now } : x),
+        stockInsumos: newStockInsumos,
+      };
+    });
+    return true;
+  }, [state.movimientosInsumos]);
+
+  // ==================== RECETAS ====================
+  const getRecetaInsumos = useCallback((recetaId: string) =>
+    state.recetaInsumos.filter(ri => ri.receta_id === recetaId), [state.recetaInsumos]);
+
+  const calcularCostoReceta = useCallback((recetaId: string): number => {
+    const ingredientes = state.recetaInsumos.filter(ri => ri.receta_id === recetaId);
+    return ingredientes.reduce((total, ri) => {
+      const stk = state.stockInsumos.find(s => s.insumo_id === ri.insumo_id);
+      return total + (ri.cantidad_usada * (stk?.costo_promedio || 0));
+    }, 0);
+  }, [state.recetaInsumos, state.stockInsumos]);
+
+  const addReceta = useCallback((r: Omit<Receta, 'id' | 'created_at' | 'updated_at'>, ingredientes: Omit<RecetaInsumo, 'id' | 'receta_id' | 'created_at' | 'updated_at'>[]): string => {
+    const now = new Date().toISOString();
+    const id = generateId();
+    const newIngredientes = ingredientes.map(i => ({ ...i, id: generateId(), receta_id: id, created_at: now, updated_at: now }));
+    setState(s => ({
+      ...s,
+      recetas: [...s.recetas, { ...r, id, created_at: now, updated_at: now }],
+      recetaInsumos: [...s.recetaInsumos, ...newIngredientes],
+    }));
+    return id;
+  }, []);
+
+  const updateReceta = useCallback((id: string, r: Partial<Omit<Receta, 'id'>>, ingredientes: Omit<RecetaInsumo, 'id' | 'receta_id' | 'created_at' | 'updated_at'>[]) => {
+    const now = new Date().toISOString();
+    const newIngredientes = ingredientes.map(i => ({ ...i, id: generateId(), receta_id: id, created_at: now, updated_at: now }));
+    setState(s => ({
+      ...s,
+      recetas: s.recetas.map(x => x.id === id ? { ...x, ...r, updated_at: now } : x),
+      recetaInsumos: [...s.recetaInsumos.filter(ri => ri.receta_id !== id), ...newIngredientes],
+    }));
+  }, []);
+
+  const deleteReceta = useCallback((id: string) => {
+    setState(s => ({
+      ...s,
+      recetas: s.recetas.map(r => r.id === id ? { ...r, deleted_at: new Date().toISOString(), activo: false } : r),
+    }));
+  }, []);
+
+  // ==================== PRODUCCION ====================
+  const addProduccion = useCallback((p: Omit<Produccion, 'id' | 'costo_unitario' | 'costo_total_produccion'>) => {
+    // Calculate cost from recipe
+    let costoTotal = 0;
+    if (p.receta_id) {
+      const costoReceta = calcularCostoReceta(p.receta_id);
+      costoTotal = costoReceta * p.cantidad_lotes;
+    }
+    const costo_unitario = p.cantidad_producida > 0 ? costoTotal / p.cantidad_producida : 0;
+    setState(s => ({ ...s, producciones: [...s.producciones, { ...p, id: generateId(), costo_total_produccion: costoTotal, costo_unitario }] }));
+  }, [calcularCostoReceta]);
+
+  const confirmarProduccion = useCallback((id: string): boolean => {
+    const prod = state.producciones.find(p => p.id === id);
+    if (!prod || prod.estado === 'CONFIRMADA') return false;
+
+    // Deduct insumos from stock if recipe exists
+    if (prod.receta_id) {
+      const ingredientes = state.recetaInsumos.filter(ri => ri.receta_id === prod.receta_id);
+      // Check sufficient stock
+      for (const ri of ingredientes) {
+        const stk = state.stockInsumos.find(s => s.insumo_id === ri.insumo_id);
+        const needed = ri.cantidad_usada * prod.cantidad_lotes;
+        if (!stk || stk.cantidad_actual < needed) return false;
+      }
+    }
+
+    const now = new Date().toISOString();
+    setState(s => {
+      let newStockInsumos = [...s.stockInsumos];
+      const newMovimientos = [...s.movimientosInsumos];
+
+      // Deduct insumos
+      if (prod.receta_id) {
+        const ingredientes = s.recetaInsumos.filter(ri => ri.receta_id === prod.receta_id);
+        for (const ri of ingredientes) {
+          const cantUsada = ri.cantidad_usada * prod.cantidad_lotes;
+          const insumo = s.insumos.find(i => i.id === ri.insumo_id);
+          newStockInsumos = newStockInsumos.map(stk => {
+            if (stk.insumo_id !== ri.insumo_id) return stk;
+            const nc = stk.cantidad_actual - cantUsada;
+            const nv = stk.valor_actual - (cantUsada * stk.costo_promedio);
+            return { ...stk, cantidad_actual: Math.max(0, nc), valor_actual: Math.max(0, nv), costo_promedio: nc > 0 ? Math.max(0, nv) / nc : stk.costo_promedio, updated_at: now };
+          });
+          // Register movement
+          newMovimientos.push({
+            id: generateId(), fecha: prod.fecha, insumo_id: ri.insumo_id,
+            tipo_movimiento: 'SALIDA', cantidad: cantUsada, unidad_movimiento: ri.unidad_medida,
+            cantidad_equivalente_base: cantUsada, precio_unitario: 0, costo_total: 0,
+            motivo: `Producción: ${s.productos.find(p => p.id === prod.producto_id)?.nombre || ''}`,
+            proveedor: '', referencia: `PROD-${id}`, observacion: `Lotes: ${prod.cantidad_lotes}`,
+            created_at: now, updated_at: now,
+          });
+        }
+      }
+
+      // Update product stock
       const newStock = s.stock.map(st => {
         if (st.producto_id !== prod.producto_id) return st;
         const newCant = st.cantidad_actual + prod.cantidad_producida;
         const newVal = st.valor_actual + prod.costo_total_produccion;
-        return {
-          ...st,
-          cantidad_actual: newCant,
-          valor_actual: newVal,
-          costo_promedio: newCant > 0 ? newVal / newCant : 0,
-          updated_at: new Date().toISOString(),
-        };
+        return { ...st, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : 0, updated_at: now };
       });
 
       return {
         ...s,
         producciones: s.producciones.map(p => p.id === id ? { ...p, estado: 'CONFIRMADA' as const } : p),
         stock: newStock,
+        stockInsumos: newStockInsumos,
+        movimientosInsumos: newMovimientos,
       };
     });
-  }, []);
+    return true;
+  }, [state.producciones, state.recetaInsumos, state.stockInsumos]);
 
-  // Check if a production can be modified (edit/delete)
   const canModifyProduccion = useCallback((id: string): { ok: boolean; reason?: string } => {
     const prod = state.producciones.find(p => p.id === id);
     if (!prod) return { ok: false, reason: 'Producción no encontrada.' };
-    
     if (prod.estado === 'ANULADA' || prod.deleted_at) return { ok: false, reason: 'Esta producción ya fue anulada.' };
-    
-    if (prod.estado === 'BORRADOR') return { ok: true }; // Borradores se pueden modificar libremente
-    
+    if (prod.estado === 'BORRADOR') return { ok: true };
     if (isMesCerrado(prod.fecha)) return { ok: false, reason: 'El mes de esta producción está cerrado.' };
-    
-    // Check if this is the most recent confirmed production for this product
     const confirmedForProduct = state.producciones
       .filter(p => p.producto_id === prod.producto_id && p.estado === 'CONFIRMADA' && !p.deleted_at)
       .sort((a, b) => a.fecha > b.fecha ? 1 : a.fecha < b.fecha ? -1 : 0);
-    
     const lastConfirmed = confirmedForProduct[confirmedForProduct.length - 1];
-    if (lastConfirmed && lastConfirmed.id !== id) {
-      return { ok: false, reason: 'No se puede modificar esta producción porque existen producciones posteriores que afectarían el costo promedio.' };
-    }
-    
-    // Check for subsequent sales of this product after this production
+    if (lastConfirmed && lastConfirmed.id !== id) return { ok: false, reason: 'Existen producciones posteriores.' };
     const activeVentas = state.ventas.filter(v => v.producto_id === prod.producto_id && v.estado === 'ACTIVA' && !v.deleted_at && v.fecha >= prod.fecha);
-    if (activeVentas.length > 0) {
-      return { ok: false, reason: 'No se puede modificar esta producción porque existen ventas posteriores que afectarían el costo promedio.' };
-    }
-    
+    if (activeVentas.length > 0) return { ok: false, reason: 'Existen ventas posteriores.' };
     return { ok: true };
   }, [state.producciones, state.ventas, isMesCerrado]);
 
-  // Eliminar producción (borrado lógico seguro)
   const eliminarProduccion = useCallback((id: string): boolean => {
     const check = canModifyProduccion(id);
-    if (!check.ok) { console.error('eliminarProduccion:', check.reason); return false; }
-    
+    if (!check.ok) return false;
     const prod = state.producciones.find(p => p.id === id)!;
-    
     if (prod.estado === 'BORRADOR') {
-      // Borrador: just mark as deleted, no stock/accounting impact
       setState(s => ({
         ...s,
         producciones: s.producciones.map(p => p.id === id ? { ...p, estado: 'ANULADA' as const, deleted_at: new Date().toISOString() } : p),
       }));
       return true;
     }
-    
-    // CONFIRMADA: revert stock and accounting
     const stk = state.stock.find(s => s.producto_id === prod.producto_id);
     if (!stk) return false;
-    
     const newCant = stk.cantidad_actual - prod.cantidad_producida;
-    if (newCant < 0) { console.error('eliminarProduccion: stock quedaría negativo'); return false; }
-    
+    if (newCant < 0) return false;
     const now = new Date().toISOString();
     setState(s => {
       const newStock = s.stock.map(st => {
@@ -313,50 +504,57 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         const nv = st.valor_actual - prod.costo_total_produccion;
         return { ...st, cantidad_actual: nc, valor_actual: nv, costo_promedio: nc > 0 ? nv / nc : 0, updated_at: now };
       });
+      // Revert insumo movements from this production
+      const prodMovimientos = s.movimientosInsumos.filter(m => m.referencia === `PROD-${id}` && !m.deleted_at);
+      let newStockInsumos = [...s.stockInsumos];
+      for (const mov of prodMovimientos) {
+        newStockInsumos = newStockInsumos.map(stk => {
+          if (stk.insumo_id !== mov.insumo_id) return stk;
+          return revertMovimiento(stk, mov);
+        });
+      }
       return {
         ...s,
         stock: newStock,
+        stockInsumos: newStockInsumos,
+        movimientosInsumos: s.movimientosInsumos.map(m => m.referencia === `PROD-${id}` ? { ...m, deleted_at: now } : m),
         producciones: s.producciones.map(p => p.id === id ? { ...p, estado: 'ANULADA' as const, deleted_at: now } : p),
       };
     });
     return true;
   }, [state.producciones, state.stock, canModifyProduccion]);
 
-  // Editar producción (revertir + reaplicar)
-  const editarProduccion = useCallback((id: string, data: { fecha: string; producto_id: string; cantidad_producida: number; costo_total_produccion: number }): boolean => {
-    const prod = state.producciones.find(p => p.id === id)!;
+  const editarProduccion = useCallback((id: string, data: { fecha: string; producto_id: string; receta_id?: string; cantidad_lotes: number; cantidad_producida: number }): boolean => {
+    const prod = state.producciones.find(p => p.id === id);
     if (!prod) return false;
-    
+
+    let costoTotal = 0;
+    if (data.receta_id) {
+      costoTotal = calcularCostoReceta(data.receta_id) * data.cantidad_lotes;
+    }
+    const costo_unitario = data.cantidad_producida > 0 ? costoTotal / data.cantidad_producida : 0;
+
     if (prod.estado === 'BORRADOR') {
-      // Borrador: just update fields, no stock impact
-      const costo_unitario = data.cantidad_producida > 0 ? data.costo_total_produccion / data.cantidad_producida : 0;
       setState(s => ({
         ...s,
-        producciones: s.producciones.map(p => p.id === id ? { ...p, ...data, costo_unitario } : p),
+        producciones: s.producciones.map(p => p.id === id ? { ...p, ...data, costo_total_produccion: costoTotal, costo_unitario } : p),
       }));
       return true;
     }
-    
-    // CONFIRMADA: check permissions
+
     const check = canModifyProduccion(id);
-    if (!check.ok) { console.error('editarProduccion:', check.reason); return false; }
-    if (isMesCerrado(data.fecha)) { console.error('editarProduccion: mes destino cerrado'); return false; }
-    
+    if (!check.ok) return false;
+    if (isMesCerrado(data.fecha)) return false;
+
     const stk = state.stock.find(s => s.producto_id === prod.producto_id);
     if (!stk) return false;
-    
-    // Simulate revert
     const revertedCant = stk.cantidad_actual - prod.cantidad_producida;
     if (revertedCant < 0) return false;
     const revertedVal = stk.valor_actual - prod.costo_total_produccion;
-    
-    // Simulate apply new
     const newCant = revertedCant + data.cantidad_producida;
-    const newVal = revertedVal + data.costo_total_produccion;
-    const costo_unitario = data.cantidad_producida > 0 ? data.costo_total_produccion / data.cantidad_producida : 0;
-    
+    const newVal = revertedVal + costoTotal;
     const now = new Date().toISOString();
-    
+
     setState(s => {
       const newStock = s.stock.map(st => {
         if (st.producto_id !== prod.producto_id) return st;
@@ -365,20 +563,18 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
       return {
         ...s,
         stock: newStock,
-        producciones: s.producciones.map(p => p.id === id ? { ...p, ...data, costo_unitario } : p),
+        producciones: s.producciones.map(p => p.id === id ? { ...p, ...data, costo_total_produccion: costoTotal, costo_unitario } : p),
       };
     });
     return true;
-  }, [state, canModifyProduccion, isMesCerrado]);
+  }, [state, canModifyProduccion, isMesCerrado, calcularCostoReceta]);
 
+  // ==================== VENTAS ====================
   const registrarVenta = useCallback((v: { fecha: string; producto_id: string; cantidad_vendida: number; total_venta: number; cobros: VentaCobro[] }): string | null => {
     const stk = state.stock.find(s => s.producto_id === v.producto_id);
     if (!stk || stk.cantidad_actual < v.cantidad_vendida) return null;
-
     const producto = state.productos.find(p => p.id === v.producto_id);
     if (!producto) return null;
-
-    // Validate cobros sum
     const totalCobros = v.cobros.reduce((s, c) => s + c.monto, 0);
     if (Math.abs(totalCobros - v.total_venta) > 0.01) return null;
 
@@ -403,7 +599,6 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
       estado: 'CONTABILIZADO', created_at: now, updated_at: now,
     };
 
-    // Build detalles: one DEBE per cobro destination
     const newDets: ComprobanteDetalle[] = [
       ...v.cobros.map(cobro => ({
         id: generateId(), comprobante_id: compId, cuenta_id: cobro.cuenta_id,
@@ -420,60 +615,40 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
       costo_total_venta: costoTotal, costo_unitario_aplicado: stk.costo_promedio,
       margen, margen_porcentaje: margenPct,
       forma_cobro_cuenta_id: v.cobros[0]?.cuenta_id || '',
-      cobros: v.cobros,
-      cuenta_ingreso_id: cIngreso.id, comprobante_id: compId,
-      estado: 'ACTIVA',
+      cobros: v.cobros, cuenta_ingreso_id: cIngreso.id, comprobante_id: compId, estado: 'ACTIVA',
     };
 
     setState(s => {
       const newStock = s.stock.map(st => {
         if (st.producto_id !== v.producto_id) return st;
-        const newCant = st.cantidad_actual - v.cantidad_vendida;
-        const newVal = st.valor_actual - costoTotal;
-        return {
-          ...st,
-          cantidad_actual: newCant,
-          valor_actual: newVal,
-          costo_promedio: newCant > 0 ? newVal / newCant : 0,
-          updated_at: now,
-        };
+        const nc = st.cantidad_actual - v.cantidad_vendida;
+        const nv = st.valor_actual - costoTotal;
+        return { ...st, cantidad_actual: nc, valor_actual: nv, costo_promedio: nc > 0 ? nv / nc : 0, updated_at: now };
       });
       return {
-        ...s,
-        stock: newStock,
+        ...s, stock: newStock,
         comprobantes: [...s.comprobantes, newComp],
         detalles: [...s.detalles, ...newDets],
         ventas: [...s.ventas, newVenta],
       };
     });
-
     return ventaId;
   }, [state]);
 
-  // Eliminar venta (borrado lógico seguro)
   const eliminarVenta = useCallback((id: string): boolean => {
     const venta = state.ventas.find(v => v.id === id && v.estado === 'ACTIVA');
     if (!venta) return false;
     if (isMesCerrado(venta.fecha)) return false;
-
     setState(s => {
-      // Revertir stock
       const newStock = s.stock.map(st => {
         if (st.producto_id !== venta.producto_id) return st;
-        const newCant = st.cantidad_actual + venta.cantidad_vendida;
-        const newVal = st.valor_actual + venta.costo_total_venta;
-        return {
-          ...st,
-          cantidad_actual: newCant,
-          valor_actual: newVal,
-          costo_promedio: newCant > 0 ? newVal / newCant : 0,
-          updated_at: new Date().toISOString(),
-        };
+        const nc = st.cantidad_actual + venta.cantidad_vendida;
+        const nv = st.valor_actual + venta.costo_total_venta;
+        return { ...st, cantidad_actual: nc, valor_actual: nv, costo_promedio: nc > 0 ? nv / nc : 0, updated_at: new Date().toISOString() };
       });
       const now = new Date().toISOString();
       return {
-        ...s,
-        stock: newStock,
+        ...s, stock: newStock,
         comprobantes: s.comprobantes.map(c => c.id === venta.comprobante_id ? { ...c, deleted_at: now } : c),
         ventas: s.ventas.map(v => v.id === id ? { ...v, estado: 'ANULADA' as const, deleted_at: now } : v),
       };
@@ -481,18 +656,15 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     return true;
   }, [state.ventas, isMesCerrado]);
 
-  // Editar venta (revertir + reaplicar) with multi-cobro
   const editarVenta = useCallback((id: string, v: { fecha: string; producto_id: string; cantidad_vendida: number; total_venta: number; cobros: VentaCobro[] }): boolean => {
     const ventaOriginal = state.ventas.find(vt => vt.id === id && (vt.estado === 'ACTIVA' || !vt.estado));
-    if (!ventaOriginal) { console.error('editarVenta: venta no encontrada o no activa', id); return false; }
-    if (isMesCerrado(ventaOriginal.fecha) || isMesCerrado(v.fecha)) { console.error('editarVenta: mes cerrado'); return false; }
-
-    // Validate cobros sum
+    if (!ventaOriginal) return false;
+    if (isMesCerrado(ventaOriginal.fecha) || isMesCerrado(v.fecha)) return false;
     const totalCobros = v.cobros.reduce((s, c) => s + c.monto, 0);
-    if (Math.abs(totalCobros - v.total_venta) > 0.01) { console.error('editarVenta: cobros no cuadran'); return false; }
+    if (Math.abs(totalCobros - v.total_venta) > 0.01) return false;
 
     const stkOrig = state.stock.find(s => s.producto_id === ventaOriginal.producto_id);
-    if (!stkOrig) { console.error('editarVenta: stock no encontrado para producto original'); return false; }
+    if (!stkOrig) return false;
 
     let revertedCant = stkOrig.cantidad_actual + ventaOriginal.cantidad_vendida;
     let revertedVal = stkOrig.valor_actual + ventaOriginal.costo_total_venta;
@@ -500,8 +672,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
 
     if (v.producto_id !== ventaOriginal.producto_id) {
       const stkNew = state.stock.find(s => s.producto_id === v.producto_id);
-      if (!stkNew) return false;
-      if (v.cantidad_vendida > stkNew.cantidad_actual) return false;
+      if (!stkNew || v.cantidad_vendida > stkNew.cantidad_actual) return false;
     } else {
       if (v.cantidad_vendida > revertedCant) return false;
     }
@@ -509,14 +680,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     const producto = state.productos.find(p => p.id === v.producto_id);
     if (!producto) return false;
 
-    let newCPP: number;
-    if (v.producto_id === ventaOriginal.producto_id) {
-      newCPP = revertedCPP;
-    } else {
-      const stkNew = state.stock.find(s => s.producto_id === v.producto_id)!;
-      newCPP = stkNew.costo_promedio;
-    }
-
+    let newCPP = v.producto_id === ventaOriginal.producto_id ? revertedCPP : state.stock.find(s => s.producto_id === v.producto_id)!.costo_promedio;
     const costoTotal = newCPP * v.cantidad_vendida;
     const margen = v.total_venta - costoTotal;
     const margenPct = v.total_venta > 0 ? (margen / v.total_venta) * 100 : 0;
@@ -554,45 +718,29 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         const nv = st.valor_actual + ventaOriginal.costo_total_venta;
         return { ...st, cantidad_actual: nc, valor_actual: nv, costo_promedio: nc > 0 ? nv / nc : 0, updated_at: now };
       });
-
       newStock = newStock.map(st => {
         if (st.producto_id !== v.producto_id) return st;
         const nc = st.cantidad_actual - v.cantidad_vendida;
         const nv = st.valor_actual - costoTotal;
         return { ...st, cantidad_actual: nc, valor_actual: nv, costo_promedio: nc > 0 ? nv / nc : 0, updated_at: now };
       });
-
       return {
-        ...s,
-        stock: newStock,
+        ...s, stock: newStock,
         comprobantes: [...s.comprobantes.map(c => c.id === ventaOriginal.comprobante_id ? { ...c, deleted_at: now } : c), newComp],
         detalles: [...s.detalles, ...newDets],
         ventas: s.ventas.map(vt => vt.id === id ? {
-          ...vt,
-          fecha: v.fecha,
-          producto_id: v.producto_id,
-          cantidad_vendida: v.cantidad_vendida,
-          total_venta: v.total_venta,
-          costo_total_venta: costoTotal,
-          costo_unitario_aplicado: newCPP,
-          margen,
-          margen_porcentaje: margenPct,
-          forma_cobro_cuenta_id: v.cobros[0]?.cuenta_id || '',
-          cobros: v.cobros,
-          cuenta_ingreso_id: cIngreso.id,
-          comprobante_id: newCompId,
+          ...vt, fecha: v.fecha, producto_id: v.producto_id, cantidad_vendida: v.cantidad_vendida,
+          total_venta: v.total_venta, costo_total_venta: costoTotal, costo_unitario_aplicado: newCPP,
+          margen, margen_porcentaje: margenPct, forma_cobro_cuenta_id: v.cobros[0]?.cuenta_id || '',
+          cobros: v.cobros, cuenta_ingreso_id: cIngreso.id, comprobante_id: newCompId,
         } : vt),
       };
     });
-
     return true;
   }, [state, isMesCerrado]);
 
   const updateStockMinimo = useCallback((producto_id: string, minimo: number) => {
-    setState(s => ({
-      ...s,
-      stock: s.stock.map(st => st.producto_id === producto_id ? { ...st, stock_minimo: minimo } : st),
-    }));
+    setState(s => ({ ...s, stock: s.stock.map(st => st.producto_id === producto_id ? { ...st, stock_minimo: minimo } : st) }));
   }, []);
 
   const cerrarMes = useCallback((anio: number, mes: number, nota?: string) => {
@@ -606,20 +754,20 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const reabrirMes = useCallback((anio: number, mes: number) => {
-    setState(s => ({
-      ...s,
-      cierres: s.cierres.map(c => c.anio === anio && c.mes === mes ? { ...c, cerrado: false } : c),
-    }));
+    setState(s => ({ ...s, cierres: s.cierres.map(c => c.anio === anio && c.mes === mes ? { ...c, cerrado: false } : c) }));
   }, []);
 
   const value: AccountingContextType = {
     ...state,
     addCuenta, updateCuenta,
     addComprobante, updateComprobante, deleteComprobante, contabilizar, pasarABorrador,
+    addInsumo, updateInsumo, deleteInsumo,
+    addMovimientoInsumo, editMovimientoInsumo, deleteMovimientoInsumo,
+    addReceta, updateReceta, deleteReceta, getRecetaInsumos, calcularCostoReceta,
     addProduccion, confirmarProduccion, eliminarProduccion, editarProduccion, canModifyProduccion,
     registrarVenta, eliminarVenta, editarVenta, updateStockMinimo,
     cerrarMes, reabrirMes, isMesCerrado,
-    getCuenta, getCuentaByCodigo, getProducto, getStockForProducto,
+    getCuenta, getCuentaByCodigo, getProducto, getInsumo, getStockForProducto, getStockForInsumo,
     getDetallesForComprobante, getComprobantesContabilizados, getDetallesContabilizados,
   };
 

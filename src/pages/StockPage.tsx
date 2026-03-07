@@ -10,7 +10,8 @@ export default function StockPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-display font-bold">Stock</h1>
+      <h1 className="text-3xl font-display font-bold">Producto Terminado</h1>
+      <p className="text-muted-foreground">Stock de productos terminados listos para la venta.</p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {stock.map(s => {

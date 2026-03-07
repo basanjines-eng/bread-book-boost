@@ -1,11 +1,9 @@
-import type { Cuenta, Producto, StockProducto } from '@/types/accounting';
+import type { Cuenta, Producto, StockProducto, Insumo, StockInsumo } from '@/types/accounting';
 
-// Simple UUID generator
 export function generateId(): string {
   return crypto.randomUUID?.() ?? Math.random().toString(36).substring(2) + Date.now().toString(36);
 }
 
-// Generate comprobante number
 export function generateNumero(date: string, existingCount: number): string {
   const d = new Date(date);
   const yyyy = d.getFullYear();
@@ -14,7 +12,6 @@ export function generateNumero(date: string, existingCount: number): string {
   return `DG-${yyyy}-${mm}-${seq}`;
 }
 
-// Format currency
 export function formatMoney(amount: number): string {
   return new Intl.NumberFormat('es-BO', {
     minimumFractionDigits: 2,
@@ -22,7 +19,6 @@ export function formatMoney(amount: number): string {
   }).format(amount);
 }
 
-// Format date
 export function formatDate(date: string): string {
   return new Date(date + 'T12:00:00').toLocaleDateString('es-BO', {
     year: 'numeric',
@@ -31,25 +27,19 @@ export function formatDate(date: string): string {
   });
 }
 
-// Today ISO
 export function today(): string {
   return new Date().toISOString().split('T')[0];
 }
 
-// Initial accounts
 export function getInitialCuentas(): Cuenta[] {
   const make = (codigo: string, nombre: string, tipo: Cuenta['tipo'], esCaja = false): Cuenta => {
     const isDeudora = tipo === 'ACTIVO' || tipo === 'GASTO';
     return {
-      id: generateId(),
-      codigo,
-      nombre,
-      tipo,
+      id: generateId(), codigo, nombre, tipo,
       naturaleza: isDeudora ? 'DEUDORA' : 'ACREEDORA',
       aumenta_en: isDeudora ? 'DEBE' : 'HABER',
       disminuye_en: isDeudora ? 'HABER' : 'DEBE',
-      es_caja_banco: esCaja,
-      activa: true,
+      es_caja_banco: esCaja, activa: true,
     };
   };
 
@@ -101,7 +91,6 @@ export function getInitialStock(productos: Producto[]): StockProducto[] {
   }));
 }
 
-// Map product name to income account code
 export function getCuentaIngresoForProducto(productoNombre: string): string {
   const map: Record<string, string> = {
     'Pan': 'I1.1',
@@ -109,4 +98,64 @@ export function getCuentaIngresoForProducto(productoNombre: string): string {
     'Queque de Naranja': 'I1.3',
   };
   return map[productoNombre] || 'I1.1';
+}
+
+// ==================== INSUMOS INICIALES ====================
+type InsumoInit = {
+  nombre: string;
+  categoria: Insumo['categoria'];
+  unidad_base: string;
+  unidad_compra_habitual: string;
+  equivalencia_compra: number;
+};
+
+const INSUMOS_INICIALES: InsumoInit[] = [
+  { nombre: 'Harina', categoria: 'Ingredientes', unidad_base: 'kg', unidad_compra_habitual: 'bolsa', equivalencia_compra: 25 },
+  { nombre: 'Manteca', categoria: 'Ingredientes', unidad_base: 'kg', unidad_compra_habitual: 'balde', equivalencia_compra: 15 },
+  { nombre: 'Huevo', categoria: 'Ingredientes', unidad_base: 'unidades', unidad_compra_habitual: 'maple', equivalencia_compra: 30 },
+  { nombre: 'Leche', categoria: 'Ingredientes', unidad_base: 'bolsas', unidad_compra_habitual: 'bolsa', equivalencia_compra: 1 },
+  { nombre: 'Queso', categoria: 'Ingredientes', unidad_base: 'unidades', unidad_compra_habitual: 'unidad', equivalencia_compra: 1 },
+  { nombre: 'Levadura', categoria: 'Ingredientes', unidad_base: 'kg', unidad_compra_habitual: 'bolsa', equivalencia_compra: 1 },
+  { nombre: 'Sal', categoria: 'Ingredientes', unidad_base: 'kg', unidad_compra_habitual: 'quintal', equivalencia_compra: 46 },
+  { nombre: 'Azúcar', categoria: 'Ingredientes', unidad_base: 'kg', unidad_compra_habitual: 'quintal', equivalencia_compra: 46 },
+  { nombre: 'Garrafas', categoria: 'Combustible', unidad_base: 'unidades', unidad_compra_habitual: 'garrafa', equivalencia_compra: 1 },
+  { nombre: 'Bolsas', categoria: 'Empaque', unidad_base: 'unidades', unidad_compra_habitual: 'paquete', equivalencia_compra: 1 },
+  { nombre: 'Plátano', categoria: 'Ingredientes', unidad_base: 'unidades', unidad_compra_habitual: 'unidad', equivalencia_compra: 1 },
+  { nombre: 'Polvo para hornear', categoria: 'Ingredientes', unidad_base: 'cajas', unidad_compra_habitual: 'caja', equivalencia_compra: 1 },
+  { nombre: 'Singani', categoria: 'Otros ingredientes', unidad_base: 'botellas', unidad_compra_habitual: 'botella', equivalencia_compra: 1 },
+  { nombre: 'Aceite', categoria: 'Otros ingredientes', unidad_base: 'bidones', unidad_compra_habitual: 'bidón', equivalencia_compra: 1 },
+  { nombre: 'Bicarbonato', categoria: 'Ingredientes', unidad_base: 'g', unidad_compra_habitual: 'paquete', equivalencia_compra: 1 },
+  { nombre: 'Esencia de vainilla', categoria: 'Ingredientes', unidad_base: 'botellas', unidad_compra_habitual: 'botella', equivalencia_compra: 1 },
+];
+
+export function getInitialInsumos(): Insumo[] {
+  const now = new Date().toISOString();
+  return INSUMOS_INICIALES.map(i => ({
+    id: generateId(),
+    nombre: i.nombre,
+    categoria: i.categoria,
+    unidad_base: i.unidad_base,
+    unidad_compra_habitual: i.unidad_compra_habitual,
+    equivalencia_compra: i.equivalencia_compra,
+    stock_minimo: 0,
+    stock_ideal: 0,
+    precio_unitario_referencia: 0,
+    proveedor_habitual: '',
+    observaciones: '',
+    activo: true,
+    created_at: now,
+    updated_at: now,
+  }));
+}
+
+export function getInitialStockInsumos(insumos: Insumo[]): StockInsumo[] {
+  const now = new Date().toISOString();
+  return insumos.map(i => ({
+    id: generateId(),
+    insumo_id: i.id,
+    cantidad_actual: 0,
+    valor_actual: 0,
+    costo_promedio: 0,
+    updated_at: now,
+  }));
 }
