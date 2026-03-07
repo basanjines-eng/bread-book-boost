@@ -1,0 +1,161 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Sora:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    /*
+      Palette:
+      1. #354B48 → dark teal (foreground, nav bg, brand)
+      2. #75998D → medium sage (muted text, secondary elements)
+      3. #96BCA5 → light sage (accents, hover states, borders)
+      4. #FEF5E6 → warm cream (background, card bg)
+      5. #417E6F → mid teal (primary actions, active states)
+    */
+
+    /* Backgrounds */
+    --background: 38 86% 95%;        /* #FEF5E6 cream */
+    --foreground: 173 17% 25%;       /* #354B48 dark teal */
+
+    --card: 38 60% 97%;              /* slightly lighter cream */
+    --card-foreground: 173 17% 25%;
+
+    --popover: 38 60% 98%;
+    --popover-foreground: 173 17% 25%;
+
+    /* Primary: #417E6F mid teal */
+    --primary: 165 32% 37%;
+    --primary-foreground: 38 86% 97%;
+
+    /* Secondary: #96BCA5 light sage */
+    --secondary: 141 22% 67%;
+    --secondary-foreground: 173 17% 20%;
+
+    /* Muted: #75998D medium sage */
+    --muted: 141 18% 88%;
+    --muted-foreground: 158 13% 45%;
+
+    /* Accent: #96BCA5 light sage */
+    --accent: 141 22% 82%;
+    --accent-foreground: 173 17% 22%;
+
+    --destructive: 4 65% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 165 32% 37%;
+    --success-foreground: 38 86% 97%;
+
+    --warning: 38 75% 52%;
+    --warning-foreground: 173 17% 20%;
+
+    --border: 141 22% 78%;           /* #96BCA5-ish border */
+    --input: 141 22% 82%;
+    --ring: 165 32% 37%;
+
+    --radius: 0.75rem;
+
+    /* ── TopNav tokens ── */
+    --nav-bg: 173 17% 25%;           /* #354B48 dark teal nav */
+    --nav-border: 173 17% 20%;
+    --nav-foreground: 38 86% 95%;    /* cream text on dark nav */
+    --nav-muted: 141 22% 67%;        /* #96BCA5 sage for inactive items */
+    --nav-hover-bg: 165 20% 32%;     /* slightly lighter dark teal */
+    --nav-active-bg: 165 32% 37%;    /* #417E6F active */
+    --nav-active-text: 38 86% 95%;   /* cream */
+    --nav-dropdown-bg: 38 60% 98%;
+    --brand-accent: 165 32% 37%;     /* #417E6F */
+
+    --chart-1: 165 32% 37%;
+    --chart-2: 141 22% 67%;
+    --chart-3: 158 13% 52%;
+    --chart-4: 38 75% 52%;
+    --chart-5: 4 65% 55%;
+
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+
+  .dark {
+    --background: 173 17% 14%;
+    --foreground: 38 60% 93%;
+    --card: 173 17% 17%;
+    --card-foreground: 38 60% 93%;
+    --popover: 173 17% 17%;
+    --popover-foreground: 38 60% 93%;
+    --primary: 141 22% 67%;
+    --primary-foreground: 173 17% 15%;
+    --secondary: 173 15% 22%;
+    --secondary-foreground: 141 22% 72%;
+    --muted: 173 12% 22%;
+    --muted-foreground: 158 13% 55%;
+    --accent: 173 15% 25%;
+    --accent-foreground: 141 22% 75%;
+    --destructive: 4 58% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 165 32% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 65% 52%;
+    --warning-foreground: 173 17% 12%;
+    --border: 173 12% 25%;
+    --input: 173 12% 25%;
+    --ring: 141 22% 67%;
+
+    --nav-bg: 173 17% 11%;
+    --nav-border: 173 15% 18%;
+    --nav-foreground: 38 60% 92%;
+    --nav-muted: 158 13% 52%;
+    --nav-hover-bg: 173 17% 17%;
+    --nav-active-bg: 165 32% 28%;
+    --nav-active-text: 141 22% 80%;
+    --nav-dropdown-bg: 173 17% 17%;
+    --brand-accent: 141 22% 67%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Sora', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Sora', system-ui, sans-serif;
+  }
+
+  /* TopNav utility classes */
+  .top-nav-header {
+    background-color: hsl(var(--nav-bg));
+    border-color: hsl(var(--nav-border));
+  }
+
+  .nav-link {
+    color: hsl(var(--nav-muted));
+  }
+
+  .nav-link:hover {
+    background-color: hsl(var(--nav-hover-bg));
+    color: hsl(var(--nav-foreground));
+  }
+
+  .nav-link-active {
+    background-color: hsl(var(--nav-active-bg)) !important;
+    color: hsl(var(--nav-active-text)) !important;
+  }
+
+  .text-nav-foreground { color: hsl(var(--nav-foreground)); }
+  .text-nav-muted { color: hsl(var(--nav-muted)); }
+  .bg-nav-hover { background-color: hsl(var(--nav-hover-bg)); }
+  .bg-nav-active { background-color: hsl(var(--nav-active-bg)); }
+  .text-nav-active-text { color: hsl(var(--nav-active-text)); }
+  .bg-nav-dropdown { background-color: hsl(var(--nav-dropdown-bg)); }
+  .border-nav-border { border-color: hsl(var(--nav-border)); }
+  .bg-brand-accent { background-color: hsl(var(--brand-accent)); }
+}
