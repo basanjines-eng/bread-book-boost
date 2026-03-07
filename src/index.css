@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Sora:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    /* ── Pastel Blue-Grey Palette ── */
+    --background: 220 20% 97%;
+    --foreground: 220 25% 22%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 22%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 22%;
+
+    /* Primary: soft slate-blue */
+    --primary: 215 55% 58%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 215 30% 92%;
+    --secondary-foreground: 215 35% 30%;
+
+    --muted: 215 20% 94%;
+    --muted-foreground: 215 15% 52%;
+
+    --accent: 215 40% 88%;
+    --accent-foreground: 215 35% 25%;
+
+    --destructive: 4 65% 58%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 158 45% 48%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 75% 55%;
+    --warning-foreground: 220 25% 15%;
+
+    --border: 215 20% 88%;
+    --input: 215 20% 88%;
+    --ring: 215 55% 58%;
+
+    --radius: 0.75rem;
+
+    /* ── TopNav specific tokens ── */
+    --nav-bg: 215 40% 96%;
+    --nav-border: 215 25% 87%;
+    --nav-foreground: 215 30% 22%;
+    --nav-muted: 215 20% 48%;
+    --nav-hover-bg: 215 35% 91%;
+    --nav-active-bg: 215 50% 85%;
+    --nav-active-text: 215 55% 30%;
+    --nav-dropdown-bg: 0 0% 100%;
+    --brand-accent: 215 55% 58%;
+
+    --chart-1: 215 55% 58%;
+    --chart-2: 158 45% 48%;
+    --chart-3: 260 45% 65%;
+    --chart-4: 38 75% 55%;
+    --chart-5: 4 65% 58%;
+
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+
+  .dark {
+    --background: 220 20% 11%;
+    --foreground: 215 20% 90%;
+    --card: 220 18% 14%;
+    --card-foreground: 215 20% 90%;
+    --popover: 220 18% 14%;
+    --popover-foreground: 215 20% 90%;
+    --primary: 215 55% 62%;
+    --primary-foreground: 220 20% 10%;
+    --secondary: 220 15% 20%;
+    --secondary-foreground: 215 20% 80%;
+    --muted: 220 12% 20%;
+    --muted-foreground: 215 12% 55%;
+    --accent: 220 18% 22%;
+    --accent-foreground: 215 20% 80%;
+    --destructive: 4 58% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 158 40% 42%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 65% 52%;
+    --warning-foreground: 220 25% 12%;
+    --border: 220 12% 22%;
+    --input: 220 12% 22%;
+    --ring: 215 55% 62%;
+
+    --nav-bg: 220 22% 13%;
+    --nav-border: 220 15% 20%;
+    --nav-foreground: 215 20% 88%;
+    --nav-muted: 215 15% 60%;
+    --nav-hover-bg: 220 18% 18%;
+    --nav-active-bg: 215 30% 22%;
+    --nav-active-text: 215 55% 72%;
+    --nav-dropdown-bg: 220 18% 14%;
+    --brand-accent: 215 55% 62%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Sora', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Sora', system-ui, sans-serif;
+  }
+
+  /* TopNav utility classes */
+  .top-nav-header {
+    background-color: hsl(var(--nav-bg));
+    border-color: hsl(var(--nav-border));
+  }
+
+  .nav-link {
+    color: hsl(var(--nav-muted));
+  }
+
+  .nav-link:hover {
+    background-color: hsl(var(--nav-hover-bg));
+    color: hsl(var(--nav-foreground));
+  }
+
+  .nav-link-active {
+    background-color: hsl(var(--nav-active-bg)) !important;
+    color: hsl(var(--nav-active-text)) !important;
+  }
+
+  .text-nav-foreground { color: hsl(var(--nav-foreground)); }
+  .text-nav-muted { color: hsl(var(--nav-muted)); }
+  .bg-nav-hover { background-color: hsl(var(--nav-hover-bg)); }
+  .bg-nav-active { background-color: hsl(var(--nav-active-bg)); }
+  .text-nav-active-text { color: hsl(var(--nav-active-text)); }
+  .bg-nav-dropdown { background-color: hsl(var(--nav-dropdown-bg)); }
+  .border-nav-border { border-color: hsl(var(--nav-border)); }
+  .bg-brand-accent { background-color: hsl(var(--brand-accent)); }
+}
