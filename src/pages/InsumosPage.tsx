@@ -124,6 +124,7 @@ export default function InsumosPage() {
   const [movObs, setMovObs] = useState("");
   const [movMotivo, setMovMotivo] = useState("");
   const [movAjusteTipo, setMovAjusteTipo] = useState<"sube" | "baja">("sube");
+  const [movCuentaPagoId, setMovCuentaPagoId] = useState("");
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
