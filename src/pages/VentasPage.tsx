@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAccounting } from "@/store/AccountingContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { formatMoney, formatDate, today } from "@/lib/accounting";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2, AlertTriangle, Plus, X, RefreshCw } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { VentaCobro } from "@/types/accounting";
 
 interface CobroLine {
@@ -18,13 +19,21 @@ interface CobroLine {
 }
 
 export default function VentasPage() {
-  const { productos, cuentas, ventas, getProducto, getCuenta, registrarVenta, eliminarVenta, editarVenta, recalcularCostosVentas, getStockForProducto, isMesCerrado } = useAccounting();
+  const {
+    productos, cuentas, ventas, comprobantes, detalles,
+    getProducto, getCuenta, getCuentaByCodigo,
+    registrarVenta, eliminarVenta, editarVenta, recalcularCostosVentas,
+    getStockForProducto, isMesCerrado,
+    addComprobante, contabilizar,
+  } = useAccounting();
 
   const [fecha, setFecha] = useState(today());
   const [productoId, setProductoId] = useState("");
   const [cantidad, setCantidad] = useState("");
   const [totalVenta, setTotalVenta] = useState("");
   const [cobros, setCobros] = useState<CobroLine[]>([{ cuenta_id: "", monto: "" }]);
+  const [anticipoSeleccionado, setAnticipoSeleccionado] = useState("");
+  const [anticipoMonto, setAnticipoMonto] = useState("");
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -37,12 +46,51 @@ export default function VentasPage() {
   const margen = totalNum - costoEst;
   const margenPct = totalNum > 0 ? (margen / totalNum) * 100 : 0;
 
-  const totalDistribuido = cobros.reduce((s, c) => s + (parseFloat(c.monto) || 0), 0);
+  const anticipoMontoNum = parseFloat(anticipoMonto) || 0;
+  const totalDistribuido = cobros.reduce((s, c) => s + (parseFloat(c.monto) || 0), 0) + anticipoMontoNum;
   const diferencia = totalNum - totalDistribuido;
+
+  // === ANTICIPOS PENDIENTES ===
+  const cAnticipo = useMemo(() => cuentas.find(c => c.codigo === 'P1.4'), [cuentas]);
+  
+  const anticiposPendientes = useMemo(() => {
+    if (!cAnticipo) return [];
+    // Find comprobantes that have P1.4 on HABER (anticipo recibido)
+    const contabIds = new Set(comprobantes.filter(c => c.estado === 'CONTABILIZADO' && !c.deleted_at).map(c => c.id));
+    
+    // Calculate net balance of P1.4 per comprobante that created the anticipo
+    // Anticipos recibidos: HABER on P1.4
+    // Anticipos aplicados: DEBE on P1.4
+    const anticiposRecibidos = comprobantes
+      .filter(c => !c.deleted_at && c.estado === 'CONTABILIZADO' && c.glosa.toLowerCase().includes('anticipo'))
+      .map(c => {
+        const dets = detalles.filter(d => d.comprobante_id === c.id && d.cuenta_id === cAnticipo.id);
+        const haberTotal = dets.reduce((s, d) => s + d.haber, 0);
+        const debeTotal = dets.reduce((s, d) => s + d.debe, 0);
+        return { comprobante: c, montoOriginal: haberTotal, montoAplicado: debeTotal };
+      })
+      .filter(a => a.montoOriginal > 0);
+
+    // Calculate total applied against P1.4
+    const totalAplicado = detalles
+      .filter(d => d.cuenta_id === cAnticipo.id && contabIds.has(d.comprobante_id))
+      .reduce((s, d) => s + d.debe, 0);
+    const totalRecibido = detalles
+      .filter(d => d.cuenta_id === cAnticipo.id && contabIds.has(d.comprobante_id))
+      .reduce((s, d) => s + d.haber, 0);
+
+    const saldoPendiente = totalRecibido - totalAplicado;
+
+    return anticiposRecibidos.map(a => ({
+      ...a,
+      saldoPendiente: Math.max(0, a.montoOriginal - a.montoAplicado),
+    })).filter(a => a.saldoPendiente > 0.01);
+  }, [cAnticipo, comprobantes, detalles]);
 
   const resetForm = () => {
     setProductoId(""); setCantidad(""); setTotalVenta("");
     setCobros([{ cuenta_id: "", monto: "" }]);
+    setAnticipoSeleccionado(""); setAnticipoMonto("");
     setFecha(today());
     setEditingId(null);
   };
@@ -59,7 +107,7 @@ export default function VentasPage() {
     }
 
     const cobrosValidos = cobros.filter(c => c.cuenta_id && parseFloat(c.monto) > 0);
-    if (cobrosValidos.length === 0) {
+    if (cobrosValidos.length === 0 && anticipoMontoNum <= 0) {
       toast.error("Agregue al menos una línea de cobro"); return;
     }
 
@@ -67,10 +115,17 @@ export default function VentasPage() {
       toast.error("La distribución del cobro debe ser igual al total de la venta"); return;
     }
 
-    const cobrosData: VentaCobro[] = cobrosValidos.map(c => ({
+    // Include anticipo as a cobro line if applicable
+    const allCobros: VentaCobro[] = cobrosValidos.map(c => ({
       cuenta_id: c.cuenta_id,
       monto: parseFloat(c.monto),
     }));
+
+    // If anticipo is used, we need special handling
+    if (anticipoMontoNum > 0 && cAnticipo) {
+      // Add P1.4 as a cobro source (it will debit P1.4 in the venta comprobante)
+      allCobros.push({ cuenta_id: cAnticipo.id, monto: anticipoMontoNum });
+    }
 
     if (editingId) {
       if (isMesCerrado(fecha)) {
@@ -81,13 +136,13 @@ export default function VentasPage() {
         fecha, producto_id: productoId,
         cantidad_vendida: cantNum,
         total_venta: totalNum,
-        cobros: cobrosData,
+        cobros: allCobros,
       });
       if (result) {
         toast.success("Venta actualizada correctamente");
         resetForm();
       } else {
-        toast.error("Error al editar. Revise la consola para más detalles.");
+        toast.error("Error al editar.");
       }
     } else {
       if (stk && cantNum > stk.cantidad_actual) {
@@ -97,7 +152,7 @@ export default function VentasPage() {
         fecha, producto_id: productoId,
         cantidad_vendida: cantNum,
         total_venta: totalNum,
-        cobros: cobrosData,
+        cobros: allCobros,
       });
       if (result) {
         toast.success("Venta registrada y contabilizada");
@@ -118,7 +173,13 @@ export default function VentasPage() {
     setCantidad(String(v.cantidad_vendida));
     setTotalVenta(String(v.total_venta));
     if (v.cobros && v.cobros.length > 0) {
-      setCobros(v.cobros.map(c => ({ cuenta_id: c.cuenta_id, monto: String(c.monto) })));
+      // Separate anticipo cobros from regular cobros
+      const anticipoCobro = cAnticipo ? v.cobros.find(c => c.cuenta_id === cAnticipo.id) : null;
+      const regularCobros = cAnticipo ? v.cobros.filter(c => c.cuenta_id !== cAnticipo.id) : v.cobros;
+      setCobros(regularCobros.length > 0 ? regularCobros.map(c => ({ cuenta_id: c.cuenta_id, monto: String(c.monto) })) : [{ cuenta_id: "", monto: "" }]);
+      if (anticipoCobro) {
+        setAnticipoMonto(String(anticipoCobro.monto));
+      }
     } else {
       setCobros([{ cuenta_id: v.forma_cobro_cuenta_id, monto: String(v.total_venta) }]);
     }
@@ -167,6 +228,38 @@ export default function VentasPage() {
             <div><Label>Cantidad</Label><Input type="number" value={cantidad} onChange={e => setCantidad(e.target.value)} min="0" /></div>
             <div><Label>Total Venta (Bs)</Label><Input type="number" value={totalVenta} onChange={e => setTotalVenta(e.target.value)} min="0" /></div>
 
+            {/* Anticipo */}
+            {anticiposPendientes.length > 0 && (
+              <div className="space-y-2 p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5">
+                <Label className="text-xs font-semibold">Aplicar Anticipo de Cliente</Label>
+                <Select value={anticipoSeleccionado} onValueChange={v => {
+                  setAnticipoSeleccionado(v);
+                  const ant = anticiposPendientes.find(a => a.comprobante.id === v);
+                  if (ant) setAnticipoMonto(String(ant.saldoPendiente));
+                }}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Seleccionar anticipo" /></SelectTrigger>
+                  <SelectContent>
+                    {anticiposPendientes.map(a => (
+                      <SelectItem key={a.comprobante.id} value={a.comprobante.id}>
+                        {formatDate(a.comprobante.fecha)} — {a.comprobante.glosa} ({formatMoney(a.saldoPendiente)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {anticipoSeleccionado && (
+                  <div className="flex gap-2 items-end">
+                    <div className="flex-1">
+                      <Label className="text-xs">Monto a aplicar</Label>
+                      <Input type="number" value={anticipoMonto} onChange={e => setAnticipoMonto(e.target.value)} className="h-9 text-xs" />
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => { setAnticipoSeleccionado(""); setAnticipoMonto(""); }}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Distribución del cobro */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -189,12 +282,9 @@ export default function VentasPage() {
                     </Select>
                   </div>
                   <Input
-                    type="number"
-                    value={cobro.monto}
+                    type="number" value={cobro.monto}
                     onChange={e => updateCobro(idx, 'monto', e.target.value)}
-                    placeholder="Monto"
-                    className="w-24 h-9 text-xs"
-                    min="0"
+                    placeholder="Monto" className="w-24 h-9 text-xs" min="0"
                   />
                   {cobros.length > 1 && (
                     <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => removeCobroLine(idx)}>
@@ -208,6 +298,9 @@ export default function VentasPage() {
                 <div className="p-2 rounded bg-muted text-xs space-y-1">
                   <div className="flex justify-between"><span>Total venta:</span><span>{formatMoney(totalNum)}</span></div>
                   <div className="flex justify-between"><span>Total distribuido:</span><span>{formatMoney(totalDistribuido)}</span></div>
+                  {anticipoMontoNum > 0 && (
+                    <div className="flex justify-between text-primary"><span>  (Anticipo aplicado):</span><span>{formatMoney(anticipoMontoNum)}</span></div>
+                  )}
                   <div className={`flex justify-between font-semibold ${Math.abs(diferencia) > 0.01 ? 'text-destructive' : 'text-success'}`}>
                     <span>Diferencia:</span><span>{formatMoney(diferencia)}</span>
                   </div>
@@ -227,9 +320,7 @@ export default function VentasPage() {
               <Button onClick={handleVenta} className="flex-1" disabled={totalNum > 0 && Math.abs(diferencia) > 0.01}>
                 {editingId ? "Guardar Cambios" : "Registrar Venta"}
               </Button>
-              {editingId && (
-                <Button variant="outline" onClick={resetForm}>Cancelar</Button>
-              )}
+              {editingId && <Button variant="outline" onClick={resetForm}>Cancelar</Button>}
             </div>
           </CardContent>
         </Card>
@@ -238,7 +329,7 @@ export default function VentasPage() {
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="font-display">Historial de Ventas</CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => { recalcularCostosVentas(); toast.success("Costos recalculados correctamente"); }}>
+            <Button variant="ghost" size="sm" onClick={() => { recalcularCostosVentas(); toast.success("Costos recalculados"); }}>
               <RefreshCw className="h-4 w-4 mr-1" /> Recalcular costos
             </Button>
           </CardHeader>
@@ -306,6 +397,37 @@ export default function VentasPage() {
         </Card>
       </div>
 
+      {/* Anticipos pendientes section */}
+      {anticiposPendientes.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="font-display">Anticipos Pendientes de Clientes</CardTitle></CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Descripción</TableHead>
+                    <TableHead className="text-right">Monto Original</TableHead>
+                    <TableHead className="text-right">Saldo Pendiente</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {anticiposPendientes.map(a => (
+                    <TableRow key={a.comprobante.id}>
+                      <TableCell>{formatDate(a.comprobante.fecha)}</TableCell>
+                      <TableCell>{a.comprobante.glosa}</TableCell>
+                      <TableCell className="text-right font-mono">{formatMoney(a.montoOriginal)}</TableCell>
+                      <TableCell className="text-right font-mono font-semibold">{formatMoney(a.saldoPendiente)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Delete confirmation dialog */}
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <DialogContent>
@@ -315,7 +437,7 @@ export default function VentasPage() {
               Confirmar Anulación de Venta
             </DialogTitle>
             <DialogDescription>
-              Esta acción revertirá el stock y anulará el comprobante contable asociado. Los reportes se recalcularán automáticamente.
+              Esta acción revertirá el stock y anulará el comprobante contable asociado.
             </DialogDescription>
           </DialogHeader>
           {deleteVenta && (
@@ -327,8 +449,6 @@ export default function VentasPage() {
               {deleteVenta.cobros?.map((c, i) => (
                 <p key={i} className="ml-2">• {getCuenta(c.cuenta_id)?.nombre}: {formatMoney(c.monto)}</p>
               ))}
-              <p><strong>Costo:</strong> {formatMoney(deleteVenta.costo_total_venta)}</p>
-              <p className="text-xs text-muted-foreground mt-2">Se devolverán {deleteVenta.cantidad_vendida} unidades al stock con valor de {formatMoney(deleteVenta.costo_total_venta)}.</p>
             </div>
           )}
           <DialogFooter>
