@@ -537,14 +537,14 @@ export default function InsumosPage() {
                                         Historial de movimientos ({movs.length})
                                       </h4>
                                       <div className="flex gap-1">
-                                        <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => openMovForm('ENTRADA', i.id)}>
-                                          <ArrowUpCircle className="h-3 w-3 mr-1" />Entrada
+                                        <Button size="sm" variant="outline" className="group h-6 text-xs px-2" onClick={() => openMovForm('ENTRADA', i.id)}>
+                                          <ArrowUpCircle className="h-3 w-3 mr-1 transition-transform duration-200 group-hover:scale-110" />Entrada
                                         </Button>
-                                        <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => openMovForm('SALIDA', i.id)}>
-                                          <ArrowDownCircle className="h-3 w-3 mr-1" />Salida
+                                        <Button size="sm" variant="outline" className="group h-6 text-xs px-2" onClick={() => openMovForm('SALIDA', i.id)}>
+                                          <ArrowDownCircle className="h-3 w-3 mr-1 transition-transform duration-200 group-hover:scale-110" />Salida
                                         </Button>
-                                        <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => openMovForm('AJUSTE', i.id)}>
-                                          <Settings2 className="h-3 w-3 mr-1" />Ajuste
+                                        <Button size="sm" variant="outline" className="group h-6 text-xs px-2" onClick={() => openMovForm('AJUSTE', i.id)}>
+                                          <Settings2 className="h-3 w-3 mr-1 transition-transform duration-200 group-hover:scale-110" />Ajuste
                                         </Button>
                                       </div>
                                     </div>
