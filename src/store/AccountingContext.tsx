@@ -42,7 +42,7 @@ interface AccountingContextType extends AccountingState {
   updateInsumo: (i: Insumo) => void;
   deleteInsumo: (id: string) => void;
   // Movimientos Insumos
-  addMovimientoInsumo: (m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>) => void;
+  addMovimientoInsumo: (m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>, cuenta_pago_id?: string) => void;
   editMovimientoInsumo: (id: string, m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>) => boolean;
   deleteMovimientoInsumo: (id: string) => boolean;
   // Recetas
