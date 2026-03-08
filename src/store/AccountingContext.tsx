@@ -358,25 +358,10 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
   const calcularCostoReceta = useCallback((recetaId: string): number => {
     const ingredientes = state.recetaInsumos.filter(ri => ri.receta_id === recetaId);
     return ingredientes.reduce((total, ri) => {
-      const ins = state.insumos.find(i => i.id === ri.insumo_id);
-      // Find last ENTRADA movement for this insumo
-      const entradas = state.movimientosInsumos
-        .filter(m => m.insumo_id === ri.insumo_id && m.tipo_movimiento === 'ENTRADA' && !m.deleted_at)
-        .sort((a, b) => (a.created_at > b.created_at ? 1 : -1));
-      const lastEntrada = entradas[entradas.length - 1];
-      let precioBase = 0;
-      if (lastEntrada) {
-        // precio_unitario is per unidad_movimiento; convert to per unidad_base
-        const equiv = ins?.equivalencia_compra || 1;
-        const isBaseUnit = !ins || lastEntrada.unidad_movimiento === ins.unidad_base;
-        precioBase = isBaseUnit ? lastEntrada.precio_unitario : lastEntrada.precio_unitario / equiv;
-      } else if (ins) {
-        // Fallback: precio_unitario_referencia / equivalencia_compra
-        precioBase = ins.equivalencia_compra > 0 ? (ins.precio_unitario_referencia || 0) / ins.equivalencia_compra : 0;
-      }
-      return total + (ri.cantidad_usada * precioBase);
+      const stk = state.stockInsumos.find(s => s.insumo_id === ri.insumo_id);
+      return total + (ri.cantidad_usada * (stk?.costo_promedio || 0));
     }, 0);
-  }, [state.recetaInsumos, state.insumos, state.movimientosInsumos]);
+  }, [state.recetaInsumos, state.stockInsumos]);
 
   const addReceta = useCallback((r: Omit<Receta, 'id' | 'created_at' | 'updated_at'>, ingredientes: Omit<RecetaInsumo, 'id' | 'receta_id' | 'created_at' | 'updated_at'>[]): string => {
     const now = new Date().toISOString();
