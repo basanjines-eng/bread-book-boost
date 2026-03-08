@@ -881,9 +881,35 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     setState(s => ({ ...s, cierres: s.cierres.map(c => c.anio === anio && c.mes === mes ? { ...c, cerrado: false } : c) }));
   }, []);
 
+  // ==================== PRODUCTOS ====================
+  const addProducto = useCallback((nombre: string) => {
+    setState(s => {
+      const codigo = getNextIngresoCodigo(s.cuentas);
+      const cuentaId = generateId();
+      const newCuenta: Cuenta = {
+        id: cuentaId, codigo, nombre: `Venta de ${nombre}`, tipo: 'INGRESO',
+        naturaleza: 'ACREEDORA', aumenta_en: 'HABER', disminuye_en: 'DEBE',
+        es_caja_banco: false, activa: true,
+      };
+      const productoId = generateId();
+      const newProducto: Producto = { id: productoId, nombre, cuenta_ingreso_id: cuentaId, activo: true };
+      const newStock: StockProducto = {
+        id: generateId(), producto_id: productoId,
+        cantidad_actual: 0, valor_actual: 0, costo_promedio: 0, stock_minimo: 0,
+        updated_at: new Date().toISOString(),
+      };
+      return {
+        ...s,
+        cuentas: [...s.cuentas, newCuenta],
+        productos: [...s.productos, newProducto],
+        stock: [...s.stock, newStock],
+      };
+    });
+  }, []);
+
   const value: AccountingContextType = {
     ...state,
-    addCuenta, updateCuenta,
+    addCuenta, updateCuenta, addProducto,
     addComprobante, updateComprobante, deleteComprobante, contabilizar, pasarABorrador,
     addInsumo, updateInsumo, deleteInsumo,
     addMovimientoInsumo, editMovimientoInsumo, deleteMovimientoInsumo,
@@ -903,56 +929,4 @@ export function useAccounting() {
   if (!ctx) throw new Error('useAccounting must be used within AccountingProvider');
   return ctx;
 }
-
-  // ==================== PRODUCTOS ====================
-  const addProducto = useCallback((nombre: string) => {
-    setState(s => {
-      const codigo = getNextIngresoCodigo(s.cuentas);
-      const cuentaId = generateId();
-      const newCuenta: Cuenta = {
-        id: cuentaId, codigo, nombre: `Venta de ${nombre}`, tipo: 'INGRESO',
-        naturaleza: 'ACREEDORA', aumenta_en: 'HABER', disminuye_en: 'DEBE',
-        es_caja_banco: false, activa: true,
-      };
-      const productoId = generateId();
-      const newProducto: Producto = { id: productoId, nombre, cuenta_ingreso_id: cuentaId, activo: true };
-      const newStock: StockProducto = {
-        id: generateId(), producto_id: productoId,
-        cantidad_actual: 0, valor_actual: 0, costo_promedio: 0, stock_minimo: 0,
-        updated_at: new Date().toISOString(),
-      };
-      return {
-        ...s,
-        cuentas: [...s.cuentas, newCuenta],
-        productos: [...s.productos, newProducto],
-        stock: [...s.stock, newStock],
-      };
-    });
-  }, []);
-
-  // ==================== PRODUCTOS ====================
-  const addProducto = useCallback((nombre: string) => {
-    setState(s => {
-      const codigo = getNextIngresoCodigo(s.cuentas);
-      const cuentaId = generateId();
-      const newCuenta: Cuenta = {
-        id: cuentaId, codigo, nombre: `Venta de ${nombre}`, tipo: 'INGRESO',
-        naturaleza: 'ACREEDORA', aumenta_en: 'HABER', disminuye_en: 'DEBE',
-        es_caja_banco: false, activa: true,
-      };
-      const productoId = generateId();
-      const newProducto: Producto = { id: productoId, nombre, cuenta_ingreso_id: cuentaId, activo: true };
-      const newStock: StockProducto = {
-        id: generateId(), producto_id: productoId,
-        cantidad_actual: 0, valor_actual: 0, costo_promedio: 0, stock_minimo: 0,
-        updated_at: new Date().toISOString(),
-      };
-      return {
-        ...s,
-        cuentas: [...s.cuentas, newCuenta],
-        productos: [...s.productos, newProducto],
-        stock: [...s.stock, newStock],
-      };
-    });
-  }, []);
 
