@@ -23,6 +23,7 @@ import BalanceGeneralPage from "./pages/BalanceGeneralPage";
 import ImpresionMensualPage from "./pages/ImpresionMensualPage";
 import PlanillaPage from "./pages/PlanillaPage";
 import ActivosFijosPage from "./pages/ActivosFijosPage";
+import NotasContablesPage from "./pages/NotasContablesPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ const App = () => (
               <Route path="/impresion-mensual" element={<ImpresionMensualPage />} />
               <Route path="/planilla" element={<PlanillaPage />} />
               <Route path="/activos-fijos" element={<ActivosFijosPage />} />
+              <Route path="/notas-contables" element={<NotasContablesPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Layout>
