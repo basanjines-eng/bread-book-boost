@@ -309,12 +309,12 @@ export default function InsumosPage() {
                 <SelectItem value="all">Todos</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={() => { resetNewForm(); setShowNewForm(true); }}>
-              <Plus className="h-4 w-4 mr-1" />Nuevo Insumo
+            <Button className="group" onClick={() => { resetNewForm(); setShowNewForm(true); }}>
+              <Plus className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:scale-110" />Nuevo Insumo
             </Button>
-            <Button variant="outline" onClick={() => openMovForm('ENTRADA')}><ArrowUpCircle className="h-4 w-4 mr-1" />Entrada</Button>
-            <Button variant="outline" onClick={() => openMovForm('SALIDA')}><ArrowDownCircle className="h-4 w-4 mr-1" />Salida</Button>
-            <Button variant="outline" onClick={() => openMovForm('AJUSTE')}><Settings2 className="h-4 w-4 mr-1" />Ajuste</Button>
+            <Button variant="outline" className="group" onClick={() => openMovForm('ENTRADA')}><ArrowUpCircle className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:scale-110" />Entrada</Button>
+            <Button variant="outline" className="group" onClick={() => openMovForm('SALIDA')}><ArrowDownCircle className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:scale-110" />Salida</Button>
+            <Button variant="outline" className="group" onClick={() => openMovForm('AJUSTE')}><Settings2 className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:scale-110" />Ajuste</Button>
           </div>
 
           {/* New Insumo inline form */}
