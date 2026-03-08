@@ -662,7 +662,13 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     const totalCobros = v.cobros.reduce((s, c) => s + c.monto, 0);
     if (Math.abs(totalCobros - v.total_venta) > 0.01) return null;
 
-    const costoTotal = stk.costo_promedio * v.cantidad_vendida;
+    // Usar costo_unitario de la última producción confirmada del producto
+    const ultimaProduccion = state.producciones
+      .filter(p => p.producto_id === v.producto_id && p.estado === 'CONFIRMADA' && !p.deleted_at)
+      .sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
+
+    const costoUnitario = ultimaProduccion?.costo_unitario ?? stk.costo_promedio;
+    const costoTotal = costoUnitario * v.cantidad_vendida;
     const margen = v.total_venta - costoTotal;
     const margenPct = v.total_venta > 0 ? (margen / v.total_venta) * 100 : 0;
 
