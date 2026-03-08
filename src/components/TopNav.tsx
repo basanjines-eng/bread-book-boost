@@ -39,7 +39,7 @@ export function TopNav() {
 
   return (
     <header className="top-nav-header sticky top-0 z-50 w-full border-b border-nav-border shadow-sm">
-      <div className="max-w-[1400px] mx-auto w-full flex items-center h-14 px-3 gap-1">
+      <div className="max-w-5xl mx-auto w-full flex items-center h-14 px-6 gap-1">
         {/* Brand */}
         <div className="flex items-center gap-2 mr-3 shrink-0">
           <div className="w-7 h-7 rounded-lg bg-brand-accent flex items-center justify-center shadow-sm">
