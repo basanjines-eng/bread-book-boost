@@ -309,12 +309,12 @@ export default function InsumosPage() {
                 <SelectItem value="all">Todos</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={() => { resetNewForm(); setShowNewForm(true); }}>
-              <Plus className="h-4 w-4 mr-1" />Nuevo Insumo
+            <Button className="group" onClick={() => { resetNewForm(); setShowNewForm(true); }}>
+              <Plus className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:scale-110" />Nuevo Insumo
             </Button>
-            <Button variant="outline" onClick={() => openMovForm('ENTRADA')}><ArrowUpCircle className="h-4 w-4 mr-1" />Entrada</Button>
-            <Button variant="outline" onClick={() => openMovForm('SALIDA')}><ArrowDownCircle className="h-4 w-4 mr-1" />Salida</Button>
-            <Button variant="outline" onClick={() => openMovForm('AJUSTE')}><Settings2 className="h-4 w-4 mr-1" />Ajuste</Button>
+            <Button variant="outline" className="group" onClick={() => openMovForm('ENTRADA')}><ArrowUpCircle className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:scale-110" />Entrada</Button>
+            <Button variant="outline" className="group" onClick={() => openMovForm('SALIDA')}><ArrowDownCircle className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:scale-110" />Salida</Button>
+            <Button variant="outline" className="group" onClick={() => openMovForm('AJUSTE')}><Settings2 className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:scale-110" />Ajuste</Button>
           </div>
 
           {/* New Insumo inline form */}
@@ -434,14 +434,14 @@ export default function InsumosPage() {
                             </td>
                             <td className="text-center py-2 px-2" onClick={e => e.stopPropagation()}>
                               <div className="flex justify-center gap-1">
-                                <Button size="sm" variant="ghost" onClick={() => startEdit(i)} className="h-7 w-7 p-0" title="Editar">
-                                  <Edit2 className="h-3.5 w-3.5" />
+                                <Button size="sm" variant="ghost" onClick={() => startEdit(i)} className="group h-7 w-7 p-0" title="Editar">
+                                  <Edit2 className="h-3.5 w-3.5 transition-transform duration-200 group-hover:scale-110" />
                                 </Button>
-                                <Button size="sm" variant="ghost" onClick={() => openMovForm('ENTRADA', i.id)} className="h-7 w-7 p-0" title="Entrada">
-                                  <ArrowUpCircle className="h-3.5 w-3.5 text-success" />
+                                <Button size="sm" variant="ghost" onClick={() => openMovForm('ENTRADA', i.id)} className="group h-7 w-7 p-0" title="Entrada">
+                                  <ArrowUpCircle className="h-3.5 w-3.5 text-success transition-transform duration-200 group-hover:scale-110" />
                                 </Button>
-                                <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(i.id)} className="h-7 w-7 p-0 text-destructive hover:text-destructive" title="Eliminar">
-                                  <Trash2 className="h-3.5 w-3.5" />
+                                <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(i.id)} className="group h-7 w-7 p-0 text-destructive hover:text-destructive" title="Eliminar">
+                                  <Trash2 className="h-3.5 w-3.5 transition-transform duration-200 group-hover:scale-110" />
                                 </Button>
                               </div>
                             </td>
@@ -537,14 +537,14 @@ export default function InsumosPage() {
                                         Historial de movimientos ({movs.length})
                                       </h4>
                                       <div className="flex gap-1">
-                                        <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => openMovForm('ENTRADA', i.id)}>
-                                          <ArrowUpCircle className="h-3 w-3 mr-1" />Entrada
+                                        <Button size="sm" variant="outline" className="group h-6 text-xs px-2" onClick={() => openMovForm('ENTRADA', i.id)}>
+                                          <ArrowUpCircle className="h-3 w-3 mr-1 transition-transform duration-200 group-hover:scale-110" />Entrada
                                         </Button>
-                                        <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => openMovForm('SALIDA', i.id)}>
-                                          <ArrowDownCircle className="h-3 w-3 mr-1" />Salida
+                                        <Button size="sm" variant="outline" className="group h-6 text-xs px-2" onClick={() => openMovForm('SALIDA', i.id)}>
+                                          <ArrowDownCircle className="h-3 w-3 mr-1 transition-transform duration-200 group-hover:scale-110" />Salida
                                         </Button>
-                                        <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => openMovForm('AJUSTE', i.id)}>
-                                          <Settings2 className="h-3 w-3 mr-1" />Ajuste
+                                        <Button size="sm" variant="outline" className="group h-6 text-xs px-2" onClick={() => openMovForm('AJUSTE', i.id)}>
+                                          <Settings2 className="h-3 w-3 mr-1 transition-transform duration-200 group-hover:scale-110" />Ajuste
                                         </Button>
                                       </div>
                                     </div>
@@ -677,9 +677,9 @@ export default function InsumosPage() {
         {/* ══ MOVIMIENTOS TAB ══════════════════════════════════════════ */}
         <TabsContent value="movimientos" className="space-y-4">
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => openMovForm('ENTRADA')}><ArrowUpCircle className="h-4 w-4 mr-1" />Entrada</Button>
-            <Button variant="outline" onClick={() => openMovForm('SALIDA')}><ArrowDownCircle className="h-4 w-4 mr-1" />Salida</Button>
-            <Button variant="outline" onClick={() => openMovForm('AJUSTE')}><Settings2 className="h-4 w-4 mr-1" />Ajuste</Button>
+            <Button variant="outline" className="group" onClick={() => openMovForm('ENTRADA')}><ArrowUpCircle className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:scale-110" />Entrada</Button>
+            <Button variant="outline" className="group" onClick={() => openMovForm('SALIDA')}><ArrowDownCircle className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:scale-110" />Salida</Button>
+            <Button variant="outline" className="group" onClick={() => openMovForm('AJUSTE')}><Settings2 className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:scale-110" />Ajuste</Button>
           </div>
           <Card>
             <CardContent className="p-0">
@@ -718,13 +718,13 @@ export default function InsumosPage() {
                           <td className="text-right py-2 px-2">{m.costo_total > 0 ? formatMoney(m.costo_total) : '-'}</td>
                           <td className="py-2 px-2 text-xs text-muted-foreground max-w-[150px] truncate">{m.motivo || m.proveedor || m.referencia || '-'}</td>
                           <td className="text-center py-2 px-2">
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive"
+                            <Button size="sm" variant="ghost" className="group h-7 w-7 p-0 text-destructive"
                               onClick={() => {
                                 const ok = deleteMovimientoInsumo(m.id);
                                 if (ok) toast.success("Movimiento eliminado");
                                 else toast.error("No se puede eliminar: existen movimientos posteriores");
                               }}>
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-3.5 w-3.5 transition-transform duration-200 group-hover:scale-110" />
                             </Button>
                           </td>
                         </tr>
@@ -741,7 +741,7 @@ export default function InsumosPage() {
 
       {/* Movimiento Form Dialog */}
       <Dialog open={showMovForm} onOpenChange={v => !v && resetMovForm()}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg top-[10%] translate-y-0 data-[state=closed]:slide-out-to-top-[5%] data-[state=open]:slide-in-from-top-[5%]">
           <DialogHeader>
             <DialogTitle>Registrar {movTipo === 'ENTRADA' ? 'Entrada / Compra' : movTipo === 'SALIDA' ? 'Salida / Uso' : 'Ajuste'}</DialogTitle>
           </DialogHeader>
@@ -812,10 +812,10 @@ export default function InsumosPage() {
               </div>
             )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={resetMovForm}>Cancelar</Button>
-            <Button onClick={handleSaveMovimiento}>Registrar</Button>
-          </DialogFooter>
+          <div className="grid grid-cols-2 gap-2 pt-2">
+            <Button variant="outline" onClick={resetMovForm} className="w-full">Cancelar</Button>
+            <Button onClick={handleSaveMovimiento} className="w-full">Registrar</Button>
+          </div>
         </DialogContent>
       </Dialog>
 
