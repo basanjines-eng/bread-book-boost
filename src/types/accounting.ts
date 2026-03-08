@@ -44,6 +44,7 @@ export interface ComprobanteDetalle {
 export interface Producto {
   id: string;
   nombre: string;
+  cuenta_ingreso_id?: string;
   activo: boolean;
 }
 

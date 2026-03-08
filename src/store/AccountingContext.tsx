@@ -7,8 +7,8 @@ import type {
 import {
   generateId, generateNumero, today,
   getInitialCuentas, getInitialProductos, getInitialStock,
-  getCuentaIngresoForProducto, getInitialInsumos, getInitialStockInsumos,
-  getInitialRecetas,
+  getInitialInsumos, getInitialStockInsumos,
+  getInitialRecetas, getNextIngresoCodigo,
 } from '@/lib/accounting';
 
 interface AccountingState {
@@ -31,6 +31,8 @@ interface AccountingContextType extends AccountingState {
   // Cuentas
   addCuenta: (c: Omit<Cuenta, 'id'>) => void;
   updateCuenta: (c: Cuenta) => void;
+  // Productos
+  addProducto: (nombre: string) => void;
   // Comprobantes
   addComprobante: (comp: Omit<Comprobante, 'id' | 'numero' | 'created_at' | 'updated_at'>, dets: Omit<ComprobanteDetalle, 'id' | 'comprobante_id'>[]) => string;
   updateComprobante: (comp: Comprobante, dets: Omit<ComprobanteDetalle, 'id' | 'comprobante_id'>[]) => void;
@@ -123,11 +125,33 @@ function migrateInsumos(state: AccountingState): AccountingState {
   };
 }
 
+function migrateProductosCuentaIngreso(state: AccountingState): AccountingState {
+  const nameToCode: Record<string, string> = {
+    'Pan': 'I1.1',
+    'Queque de Plátano': 'I1.2',
+    'Queque de Naranja': 'I1.3',
+  };
+  let changed = false;
+  const productos = state.productos.map(p => {
+    if (p.cuenta_ingreso_id) return p;
+    const code = nameToCode[p.nombre];
+    const cuenta = code ? state.cuentas.find(c => c.codigo === code) : undefined;
+    if (cuenta) {
+      changed = true;
+      return { ...p, cuenta_ingreso_id: cuenta.id };
+    }
+    return p;
+  });
+  if (changed) return { ...state, productos };
+  return state;
+}
+
 function initState(): AccountingState {
   const saved = loadState();
   if (saved && saved.cuentas?.length > 0) {
     let s = migrateVentasCobros(saved);
     s = migrateInsumos(s);
+    s = migrateProductosCuentaIngreso(s);
     // Ensure arrays exist
     if (!s.recetas) s.recetas = [];
     if (!s.recetaInsumos) s.recetaInsumos = [];
@@ -135,7 +159,7 @@ function initState(): AccountingState {
     return s;
   }
   const cuentas = getInitialCuentas();
-  const productos = getInitialProductos();
+  const productos = getInitialProductos(cuentas);
   const stock = getInitialStock(productos);
   const insumos = getInitialInsumos();
   const stockInsumos = getInitialStockInsumos(insumos);
@@ -673,8 +697,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     const margen = v.total_venta - costoTotal;
     const margenPct = v.total_venta > 0 ? (margen / v.total_venta) * 100 : 0;
 
-    const codigoIngreso = getCuentaIngresoForProducto(producto.nombre);
-    const cIngreso = state.cuentas.find(c => c.codigo === codigoIngreso);
+    const cIngreso = state.cuentas.find(c => c.id === producto.cuenta_ingreso_id);
     const cCostoVentas = state.cuentas.find(c => c.codigo === 'G1.7');
     const cProdTerm = state.cuentas.find(c => c.codigo === 'A1.7');
     if (!cIngreso || !cCostoVentas || !cProdTerm) return null;
@@ -776,8 +799,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     const margen = v.total_venta - costoTotal;
     const margenPct = v.total_venta > 0 ? (margen / v.total_venta) * 100 : 0;
 
-    const codigoIngreso = getCuentaIngresoForProducto(producto.nombre);
-    const cIngreso = state.cuentas.find(c => c.codigo === codigoIngreso);
+    const cIngreso = state.cuentas.find(c => c.id === producto.cuenta_ingreso_id);
     const cCostoVentas = state.cuentas.find(c => c.codigo === 'G1.7');
     const cProdTerm = state.cuentas.find(c => c.codigo === 'A1.7');
     if (!cIngreso || !cCostoVentas || !cProdTerm) return false;
@@ -881,9 +903,35 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     setState(s => ({ ...s, cierres: s.cierres.map(c => c.anio === anio && c.mes === mes ? { ...c, cerrado: false } : c) }));
   }, []);
 
+  // ==================== PRODUCTOS ====================
+  const addProducto = useCallback((nombre: string) => {
+    setState(s => {
+      const codigo = getNextIngresoCodigo(s.cuentas);
+      const cuentaId = generateId();
+      const newCuenta: Cuenta = {
+        id: cuentaId, codigo, nombre: `Venta de ${nombre}`, tipo: 'INGRESO',
+        naturaleza: 'ACREEDORA', aumenta_en: 'HABER', disminuye_en: 'DEBE',
+        es_caja_banco: false, activa: true,
+      };
+      const productoId = generateId();
+      const newProducto: Producto = { id: productoId, nombre, cuenta_ingreso_id: cuentaId, activo: true };
+      const newStock: StockProducto = {
+        id: generateId(), producto_id: productoId,
+        cantidad_actual: 0, valor_actual: 0, costo_promedio: 0, stock_minimo: 0,
+        updated_at: new Date().toISOString(),
+      };
+      return {
+        ...s,
+        cuentas: [...s.cuentas, newCuenta],
+        productos: [...s.productos, newProducto],
+        stock: [...s.stock, newStock],
+      };
+    });
+  }, []);
+
   const value: AccountingContextType = {
     ...state,
-    addCuenta, updateCuenta,
+    addCuenta, updateCuenta, addProducto,
     addComprobante, updateComprobante, deleteComprobante, contabilizar, pasarABorrador,
     addInsumo, updateInsumo, deleteInsumo,
     addMovimientoInsumo, editMovimientoInsumo, deleteMovimientoInsumo,
