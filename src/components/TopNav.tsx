@@ -28,8 +28,8 @@ const contabilidadItems = [
   { title: "Estado de Resultados", url: "/estado-resultados", icon: FileBarChart },
   { title: "Balance General", url: "/balance-general", icon: Scale },
   { title: "Reportes", url: "/reportes", icon: BarChart3 },
-  { title: "Planilla", url: "/planilla", icon: FileText },
-  { title: "Activos Fijos", url: "/activos-fijos", icon: Package },
+  { title: "Planilla", url: "/planilla", icon: Users },
+  { title: "Activos Fijos", url: "/activos-fijos", icon: Building2 },
   { title: "Cierre Mensual", url: "/cierre-mensual", icon: CalendarCheck },
   { title: "Impresión Mensual", url: "/impresion-mensual", icon: Printer },
 ];
