@@ -8,6 +8,7 @@ import {
   generateId, generateNumero, today,
   getInitialCuentas, getInitialProductos, getInitialStock,
   getCuentaIngresoForProducto, getInitialInsumos, getInitialStockInsumos,
+  getInitialRecetas,
 } from '@/lib/accounting';
 
 interface AccountingState {
@@ -137,9 +138,10 @@ function initState(): AccountingState {
   const stock = getInitialStock(productos);
   const insumos = getInitialInsumos();
   const stockInsumos = getInitialStockInsumos(insumos);
+  const { recetas, recetaInsumos } = getInitialRecetas(productos, insumos);
   return {
     cuentas, comprobantes: [], detalles: [], productos, producciones: [], stock, ventas: [], cierres: [],
-    insumos, stockInsumos, movimientosInsumos: [], recetas: [], recetaInsumos: [],
+    insumos, stockInsumos, movimientosInsumos: [], recetas, recetaInsumos,
   };
 }
 
@@ -356,10 +358,25 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
   const calcularCostoReceta = useCallback((recetaId: string): number => {
     const ingredientes = state.recetaInsumos.filter(ri => ri.receta_id === recetaId);
     return ingredientes.reduce((total, ri) => {
-      const stk = state.stockInsumos.find(s => s.insumo_id === ri.insumo_id);
-      return total + (ri.cantidad_usada * (stk?.costo_promedio || 0));
+      const ins = state.insumos.find(i => i.id === ri.insumo_id);
+      // Find last ENTRADA movement for this insumo
+      const entradas = state.movimientosInsumos
+        .filter(m => m.insumo_id === ri.insumo_id && m.tipo_movimiento === 'ENTRADA' && !m.deleted_at)
+        .sort((a, b) => (a.created_at > b.created_at ? 1 : -1));
+      const lastEntrada = entradas[entradas.length - 1];
+      let precioBase = 0;
+      if (lastEntrada) {
+        // precio_unitario is per unidad_movimiento; convert to per unidad_base
+        const equiv = ins?.equivalencia_compra || 1;
+        const isBaseUnit = !ins || lastEntrada.unidad_movimiento === ins.unidad_base;
+        precioBase = isBaseUnit ? lastEntrada.precio_unitario : lastEntrada.precio_unitario / equiv;
+      } else if (ins) {
+        // Fallback: precio_unitario_referencia / equivalencia_compra
+        precioBase = ins.equivalencia_compra > 0 ? (ins.precio_unitario_referencia || 0) / ins.equivalencia_compra : 0;
+      }
+      return total + (ri.cantidad_usada * precioBase);
     }, 0);
-  }, [state.recetaInsumos, state.stockInsumos]);
+  }, [state.recetaInsumos, state.insumos, state.movimientosInsumos]);
 
   const addReceta = useCallback((r: Omit<Receta, 'id' | 'created_at' | 'updated_at'>, ingredientes: Omit<RecetaInsumo, 'id' | 'receta_id' | 'created_at' | 'updated_at'>[]): string => {
     const now = new Date().toISOString();
@@ -428,14 +445,10 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
       }
     }
 
-    // Recalculate cost at confirmation time using CURRENT CPP (not the CPP from when it was registered)
+    // Recalculate cost at confirmation time using last ENTRADA price
     let costoConfirmado = 0;
     if (prod.receta_id) {
-      const ingredientes = state.recetaInsumos.filter(ri => ri.receta_id === prod.receta_id);
-      costoConfirmado = ingredientes.reduce((total, ri) => {
-        const stk = state.stockInsumos.find(s => s.insumo_id === ri.insumo_id);
-        return total + (ri.cantidad_usada * prod.cantidad_lotes * (stk?.costo_promedio || 0));
-      }, 0);
+      costoConfirmado = calcularCostoReceta(prod.receta_id) * prod.cantidad_lotes;
     }
     const costoUnitarioConfirmado = prod.cantidad_producida > 0 ? costoConfirmado / prod.cantidad_producida : 0;
 
@@ -547,7 +560,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         producciones: s.producciones.map(p => p.id === id ? { ...p, estado: 'ANULADA' as const, deleted_at: now } : p),
       };
     });
-    return { ok: true };
+    return true;
   }, [state.producciones, state.stock, canModifyProduccion]);
 
   const editarProduccion = useCallback((id: string, data: { fecha: string; producto_id: string; receta_id?: string; cantidad_lotes: number; cantidad_producida: number }): boolean => {
