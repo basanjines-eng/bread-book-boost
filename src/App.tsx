@@ -55,6 +55,7 @@ const App = () => (
               <Route path="/impresion-mensual" element={<ImpresionMensualPage />} />
               <Route path="/planilla" element={<PlanillaPage />} />
               <Route path="/activos-fijos" element={<ActivosFijosPage />} />
+              <Route path="/notas-contables" element={<NotasContablesPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Layout>
