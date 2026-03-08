@@ -724,7 +724,7 @@ export default function InsumosPage() {
                                 if (ok) toast.success("Movimiento eliminado");
                                 else toast.error("No se puede eliminar: existen movimientos posteriores");
                               }}>
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-3.5 w-3.5 transition-transform duration-200 group-hover:scale-110" />
                             </Button>
                           </td>
                         </tr>
