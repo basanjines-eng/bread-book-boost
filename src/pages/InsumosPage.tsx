@@ -39,7 +39,7 @@ function insumoToEditRow(i: Insumo): EditRow {
 
 export default function InsumosPage() {
   const {
-    insumos, stockInsumos, movimientosInsumos, getInsumo, getStockForInsumo,
+    cuentas, insumos, stockInsumos, movimientosInsumos, getInsumo, getStockForInsumo,
     addInsumo, updateInsumo, deleteInsumo, addMovimientoInsumo, editMovimientoInsumo, deleteMovimientoInsumo,
   } = useAccounting();
 
