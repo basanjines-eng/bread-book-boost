@@ -68,6 +68,17 @@ export function getInitialCuentas(): Cuenta[] {
     make('G1.5', 'Mantenimiento', 'GASTO'),
     make('G1.6', 'Gas', 'GASTO'),
     make('G1.7', 'Costo de Ventas', 'GASTO'),
+    make('G1.8', 'Mermas de Producción', 'GASTO'),
+    make('G1.9', 'Sueldos y Salarios', 'GASTO'),
+    make('G1.10', 'Aportes Patronales', 'GASTO'),
+    make('G1.11', 'Depreciación', 'GASTO'),
+    make('P1.5', 'Sueldos por Pagar', 'PASIVO'),
+    make('P1.6', 'AFP por Pagar', 'PASIVO'),
+    make('P1.7', 'CNS por Pagar', 'PASIVO'),
+    make('A2.1', 'Muebles y Enseres', 'ACTIVO'),
+    make('A2.2', 'Maquinaria y Equipo', 'ACTIVO'),
+    make('A2.3', 'Equipos de Cómputo', 'ACTIVO'),
+    makeCustom('A2.9', 'Depreciación Acumulada', 'ACTIVO', 'ACREEDORA'),
   ];
 }
 
