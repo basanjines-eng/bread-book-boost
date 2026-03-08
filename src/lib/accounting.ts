@@ -1,4 +1,4 @@
-import type { Cuenta, Producto, StockProducto, Insumo, StockInsumo } from '@/types/accounting';
+import type { Cuenta, Producto, StockProducto, Insumo, StockInsumo, Receta, RecetaInsumo } from '@/types/accounting';
 
 export function generateId(): string {
   return crypto.randomUUID?.() ?? Math.random().toString(36).substring(2) + Date.now().toString(36);
@@ -110,22 +110,24 @@ type InsumoInit = {
 };
 
 const INSUMOS_INICIALES: InsumoInit[] = [
-  { nombre: 'Harina', categoria: 'Ingredientes', unidad_base: 'kg', unidad_compra_habitual: 'bolsa', equivalencia_compra: 25 },
-  { nombre: 'Manteca', categoria: 'Ingredientes', unidad_base: 'kg', unidad_compra_habitual: 'balde', equivalencia_compra: 15 },
+  { nombre: 'Harina', categoria: 'Ingredientes', unidad_base: 'g', unidad_compra_habitual: 'Bolsa', equivalencia_compra: 50000 },
+  { nombre: 'Azúcar', categoria: 'Ingredientes', unidad_base: 'g', unidad_compra_habitual: 'Quintal', equivalencia_compra: 46000 },
+  { nombre: 'Levadura', categoria: 'Ingredientes', unidad_base: 'g', unidad_compra_habitual: 'bolsa', equivalencia_compra: 1000 },
+  { nombre: 'Manteca', categoria: 'Ingredientes', unidad_base: 'g', unidad_compra_habitual: 'balde', equivalencia_compra: 15000 },
+  { nombre: 'Sal', categoria: 'Ingredientes', unidad_base: 'g', unidad_compra_habitual: 'Quintal', equivalencia_compra: 46000 },
+  { nombre: 'Queso', categoria: 'Ingredientes', unidad_base: 'g', unidad_compra_habitual: 'unidad', equivalencia_compra: 1000 },
   { nombre: 'Huevo', categoria: 'Ingredientes', unidad_base: 'unidades', unidad_compra_habitual: 'maple', equivalencia_compra: 30 },
+  { nombre: 'Mantequilla', categoria: 'Ingredientes', unidad_base: 'g', unidad_compra_habitual: 'balde', equivalencia_compra: 15000 },
   { nombre: 'Leche', categoria: 'Ingredientes', unidad_base: 'bolsas', unidad_compra_habitual: 'bolsa', equivalencia_compra: 1 },
-  { nombre: 'Queso', categoria: 'Ingredientes', unidad_base: 'unidades', unidad_compra_habitual: 'unidad', equivalencia_compra: 1 },
-  { nombre: 'Levadura', categoria: 'Ingredientes', unidad_base: 'kg', unidad_compra_habitual: 'bolsa', equivalencia_compra: 1 },
-  { nombre: 'Sal', categoria: 'Ingredientes', unidad_base: 'kg', unidad_compra_habitual: 'quintal', equivalencia_compra: 46 },
-  { nombre: 'Azúcar', categoria: 'Ingredientes', unidad_base: 'kg', unidad_compra_habitual: 'quintal', equivalencia_compra: 46 },
+  { nombre: 'Plátano', categoria: 'Ingredientes', unidad_base: 'g', unidad_compra_habitual: 'unidad', equivalencia_compra: 120 },
+  { nombre: 'Polvo para hornear', categoria: 'Ingredientes', unidad_base: 'g', unidad_compra_habitual: 'caja', equivalencia_compra: 500 },
+  { nombre: 'Bicarbonato', categoria: 'Ingredientes', unidad_base: 'g', unidad_compra_habitual: 'paquete', equivalencia_compra: 500 },
+  { nombre: 'Fruta abrillantada', categoria: 'Ingredientes', unidad_base: 'g', unidad_compra_habitual: 'bolsa', equivalencia_compra: 500 },
+  { nombre: 'Aceite', categoria: 'Otros ingredientes', unidad_base: 'ml', unidad_compra_habitual: 'bidón', equivalencia_compra: 4900 },
+  { nombre: 'Esencia de vainilla', categoria: 'Ingredientes', unidad_base: 'ml', unidad_compra_habitual: 'botella', equivalencia_compra: 1000 },
+  { nombre: 'Singani', categoria: 'Otros ingredientes', unidad_base: 'ml', unidad_compra_habitual: 'botella', equivalencia_compra: 1000 },
   { nombre: 'Garrafas', categoria: 'Combustible', unidad_base: 'unidades', unidad_compra_habitual: 'garrafa', equivalencia_compra: 1 },
   { nombre: 'Bolsas', categoria: 'Empaque', unidad_base: 'unidades', unidad_compra_habitual: 'paquete', equivalencia_compra: 1 },
-  { nombre: 'Plátano', categoria: 'Ingredientes', unidad_base: 'unidades', unidad_compra_habitual: 'unidad', equivalencia_compra: 1 },
-  { nombre: 'Polvo para hornear', categoria: 'Ingredientes', unidad_base: 'cajas', unidad_compra_habitual: 'caja', equivalencia_compra: 1 },
-  { nombre: 'Singani', categoria: 'Otros ingredientes', unidad_base: 'botellas', unidad_compra_habitual: 'botella', equivalencia_compra: 1 },
-  { nombre: 'Aceite', categoria: 'Otros ingredientes', unidad_base: 'bidones', unidad_compra_habitual: 'bidón', equivalencia_compra: 1 },
-  { nombre: 'Bicarbonato', categoria: 'Ingredientes', unidad_base: 'g', unidad_compra_habitual: 'paquete', equivalencia_compra: 1 },
-  { nombre: 'Esencia de vainilla', categoria: 'Ingredientes', unidad_base: 'botellas', unidad_compra_habitual: 'botella', equivalencia_compra: 1 },
 ];
 
 export function getInitialInsumos(): Insumo[] {
@@ -158,4 +160,65 @@ export function getInitialStockInsumos(insumos: Insumo[]): StockInsumo[] {
     costo_promedio: 0,
     updated_at: now,
   }));
+}
+
+// ==================== RECETAS INICIALES ====================
+export function getInitialRecetas(productos: Producto[], insumos: Insumo[]): { recetas: Receta[], recetaInsumos: RecetaInsumo[] } {
+  const now = new Date().toISOString();
+  const findInsumo = (nombre: string) => insumos.find(i => i.nombre === nombre);
+  const findProducto = (nombre: string) => productos.find(p => p.nombre === nombre);
+
+  const recetas: Receta[] = [];
+  const recetaInsumos: RecetaInsumo[] = [];
+
+  // Receta 1 — Masa de Pan
+  const panProducto = findProducto('Pan');
+  if (panProducto) {
+    const recetaId = generateId();
+    recetas.push({ id: recetaId, producto_id: panProducto.id, nombre_receta: 'Masa de Pan', activo: true, created_at: now, updated_at: now });
+    const ingredientesPan: { nombre: string; cantidad: number; unidad: string }[] = [
+      { nombre: 'Harina', cantidad: 4000, unidad: 'g' },
+      { nombre: 'Azúcar', cantidad: 80, unidad: 'g' },
+      { nombre: 'Levadura', cantidad: 48, unidad: 'g' },
+      { nombre: 'Manteca', cantidad: 224, unidad: 'g' },
+      { nombre: 'Sal', cantidad: 48, unidad: 'g' },
+      { nombre: 'Queso', cantidad: 750, unidad: 'g' },
+      { nombre: 'Huevo', cantidad: 10, unidad: 'unidades' },
+      { nombre: 'Mantequilla', cantidad: 14, unidad: 'g' },
+      { nombre: 'Leche', cantidad: 1, unidad: 'bolsas' },
+    ];
+    for (const ing of ingredientesPan) {
+      const ins = findInsumo(ing.nombre);
+      if (ins) {
+        recetaInsumos.push({ id: generateId(), receta_id: recetaId, insumo_id: ins.id, cantidad_usada: ing.cantidad, unidad_medida: ing.unidad, created_at: now, updated_at: now });
+      }
+    }
+  }
+
+  // Receta 2 — Queque de Plátano
+  const quequeProducto = findProducto('Queque de Plátano');
+  if (quequeProducto) {
+    const recetaId = generateId();
+    recetas.push({ id: recetaId, producto_id: quequeProducto.id, nombre_receta: 'Queque de Plátano', activo: true, created_at: now, updated_at: now });
+    const ingredientesQueque: { nombre: string; cantidad: number; unidad: string }[] = [
+      { nombre: 'Harina', cantidad: 375, unidad: 'g' },
+      { nombre: 'Azúcar', cantidad: 200, unidad: 'g' },
+      { nombre: 'Plátano', cantidad: 360, unidad: 'g' },
+      { nombre: 'Huevo', cantidad: 180, unidad: 'g' },
+      { nombre: 'Polvo para hornear', cantidad: 12, unidad: 'g' },
+      { nombre: 'Bicarbonato', cantidad: 5, unidad: 'g' },
+      { nombre: 'Fruta abrillantada', cantidad: 20, unidad: 'g' },
+      { nombre: 'Aceite', cantidad: 120, unidad: 'ml' },
+      { nombre: 'Esencia de vainilla', cantidad: 5, unidad: 'ml' },
+      { nombre: 'Singani', cantidad: 30, unidad: 'ml' },
+    ];
+    for (const ing of ingredientesQueque) {
+      const ins = findInsumo(ing.nombre);
+      if (ins) {
+        recetaInsumos.push({ id: generateId(), receta_id: recetaId, insumo_id: ins.id, cantidad_usada: ing.cantidad, unidad_medida: ing.unidad, created_at: now, updated_at: now });
+      }
+    }
+  }
+
+  return { recetas, recetaInsumos };
 }
