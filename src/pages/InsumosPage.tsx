@@ -434,14 +434,14 @@ export default function InsumosPage() {
                             </td>
                             <td className="text-center py-2 px-2" onClick={e => e.stopPropagation()}>
                               <div className="flex justify-center gap-1">
-                                <Button size="sm" variant="ghost" onClick={() => startEdit(i)} className="h-7 w-7 p-0" title="Editar">
-                                  <Edit2 className="h-3.5 w-3.5" />
+                                <Button size="sm" variant="ghost" onClick={() => startEdit(i)} className="group h-7 w-7 p-0" title="Editar">
+                                  <Edit2 className="h-3.5 w-3.5 transition-transform duration-200 group-hover:scale-110" />
                                 </Button>
-                                <Button size="sm" variant="ghost" onClick={() => openMovForm('ENTRADA', i.id)} className="h-7 w-7 p-0" title="Entrada">
-                                  <ArrowUpCircle className="h-3.5 w-3.5 text-success" />
+                                <Button size="sm" variant="ghost" onClick={() => openMovForm('ENTRADA', i.id)} className="group h-7 w-7 p-0" title="Entrada">
+                                  <ArrowUpCircle className="h-3.5 w-3.5 text-success transition-transform duration-200 group-hover:scale-110" />
                                 </Button>
-                                <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(i.id)} className="h-7 w-7 p-0 text-destructive hover:text-destructive" title="Eliminar">
-                                  <Trash2 className="h-3.5 w-3.5" />
+                                <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(i.id)} className="group h-7 w-7 p-0 text-destructive hover:text-destructive" title="Eliminar">
+                                  <Trash2 className="h-3.5 w-3.5 transition-transform duration-200 group-hover:scale-110" />
                                 </Button>
                               </div>
                             </td>
