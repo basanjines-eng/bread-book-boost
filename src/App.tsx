@@ -20,6 +20,7 @@ import CierreMensualPage from "./pages/CierreMensualPage";
 import ConfiguracionPage from "./pages/ConfiguracionPage";
 import EstadoResultadosPage from "./pages/EstadoResultadosPage";
 import BalanceGeneralPage from "./pages/BalanceGeneralPage";
+import ImpresionMensualPage from "./pages/ImpresionMensualPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
