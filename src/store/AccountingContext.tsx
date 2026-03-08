@@ -409,14 +409,21 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     // Deduct insumos from stock if recipe exists
     if (prod.receta_id) {
       const ingredientes = state.recetaInsumos.filter(ri => ri.receta_id === prod.receta_id);
-      // Check sufficient stock — return which insumo is failing
+      // Check sufficient stock — convert to base units before comparing
       for (const ri of ingredientes) {
         const stk = state.stockInsumos.find(s => s.insumo_id === ri.insumo_id);
-        const needed = ri.cantidad_usada * prod.cantidad_lotes;
-        if (!stk || stk.cantidad_actual < needed) {
-          const nombreInsumo = state.insumos.find(i => i.id === ri.insumo_id)?.nombre || ri.insumo_id;
+        const ins = state.insumos.find(i => i.id === ri.insumo_id);
+        // Convert to base units if unidad_medida != unidad_base
+        const equivalencia = ins?.equivalencia_compra || 1;
+        const isBase = !ins || ri.unidad_medida === ins.unidad_base;
+        const neededBase = isBase
+          ? ri.cantidad_usada * prod.cantidad_lotes
+          : ri.cantidad_usada * prod.cantidad_lotes * equivalencia;
+        if (!stk || stk.cantidad_actual < neededBase) {
+          const nombreInsumo = ins?.nombre || ri.insumo_id;
           const disponible = stk?.cantidad_actual ?? 0;
-          return { ok: false, faltante: `"${nombreInsumo}" (necesario: ${needed.toFixed(2)}, disponible: ${disponible.toFixed(2)})` };
+          const unidadBase = ins?.unidad_base || ri.unidad_medida;
+          return { ok: false, faltante: `"${nombreInsumo}" (necesario: ${neededBase.toFixed(2)} ${unidadBase}, disponible: ${disponible.toFixed(2)} ${unidadBase})` };
         }
       }
     }
@@ -441,8 +448,12 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
       if (prod.receta_id) {
         const ingredientes = s.recetaInsumos.filter(ri => ri.receta_id === prod.receta_id);
         for (const ri of ingredientes) {
-          const cantUsada = ri.cantidad_usada * prod.cantidad_lotes;
           const insumo = s.insumos.find(i => i.id === ri.insumo_id);
+          const equivalencia = insumo?.equivalencia_compra || 1;
+          const isBase = !insumo || ri.unidad_medida === insumo.unidad_base;
+          const cantUsada = isBase
+            ? ri.cantidad_usada * prod.cantidad_lotes
+            : ri.cantidad_usada * prod.cantidad_lotes * equivalencia;
           newStockInsumos = newStockInsumos.map(stk => {
             if (stk.insumo_id !== ri.insumo_id) return stk;
             const nc = stk.cantidad_actual - cantUsada;
