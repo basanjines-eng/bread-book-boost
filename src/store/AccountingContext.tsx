@@ -673,8 +673,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     const margen = v.total_venta - costoTotal;
     const margenPct = v.total_venta > 0 ? (margen / v.total_venta) * 100 : 0;
 
-    const codigoIngreso = getCuentaIngresoForProducto(producto.nombre);
-    const cIngreso = state.cuentas.find(c => c.codigo === codigoIngreso);
+    const cIngreso = state.cuentas.find(c => c.id === producto.cuenta_ingreso_id);
     const cCostoVentas = state.cuentas.find(c => c.codigo === 'G1.7');
     const cProdTerm = state.cuentas.find(c => c.codigo === 'A1.7');
     if (!cIngreso || !cCostoVentas || !cProdTerm) return null;
