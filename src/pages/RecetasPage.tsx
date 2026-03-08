@@ -162,7 +162,7 @@ export default function RecetasPage() {
             <DialogTitle>{editingId ? "Editar Receta" : "Nueva Receta"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><Label>Nombre de la Receta *</Label><Input value={formNombre} onChange={e => setFormNombre(e.target.value)} placeholder="Ej: Masa Pan" /></div>
               <div>
                 <Label>Producto Asociado *</Label>

@@ -23,7 +23,7 @@ export default function StockPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                   <div>
                     <p className="text-muted-foreground">Cantidad</p>
                     <p className="text-2xl font-display font-bold">{s.cantidad_actual}</p>
