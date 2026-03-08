@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAccounting } from "@/store/AccountingContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -78,7 +78,14 @@ export default function LibroDiario() {
     { cuenta_id: "", descripcion: "", debe: 0, haber: 0 },
     { cuenta_id: "", descripcion: "", debe: 0, haber: 0 },
   ]);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set(comprobantes.map(c => c.id)));
+  useEffect(() => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      comprobantes.forEach(c => next.add(c.id));
+      return next;
+    });
+  }, [comprobantes]);
   const [filtroEstado, setFiltroEstado] = useState<string>("TODOS");
 
   const activos = comprobantes.filter(c => !c.deleted_at);
