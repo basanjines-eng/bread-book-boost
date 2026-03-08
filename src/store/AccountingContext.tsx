@@ -146,12 +146,46 @@ function migrateProductosCuentaIngreso(state: AccountingState): AccountingState 
   return state;
 }
 
+function migrateNewAccounts(state: AccountingState): AccountingState {
+  const newAccounts: { codigo: string; nombre: string; tipo: import('@/types/accounting').TipoCuenta; naturaleza?: import('@/types/accounting').Naturaleza }[] = [
+    { codigo: 'G1.8', nombre: 'Mermas de Producción', tipo: 'GASTO' },
+    { codigo: 'G1.9', nombre: 'Sueldos y Salarios', tipo: 'GASTO' },
+    { codigo: 'G1.10', nombre: 'Aportes Patronales', tipo: 'GASTO' },
+    { codigo: 'G1.11', nombre: 'Depreciación', tipo: 'GASTO' },
+    { codigo: 'P1.5', nombre: 'Sueldos por Pagar', tipo: 'PASIVO' },
+    { codigo: 'P1.6', nombre: 'AFP por Pagar', tipo: 'PASIVO' },
+    { codigo: 'P1.7', nombre: 'CNS por Pagar', tipo: 'PASIVO' },
+    { codigo: 'A2.1', nombre: 'Muebles y Enseres', tipo: 'ACTIVO' },
+    { codigo: 'A2.2', nombre: 'Maquinaria y Equipo', tipo: 'ACTIVO' },
+    { codigo: 'A2.3', nombre: 'Equipos de Cómputo', tipo: 'ACTIVO' },
+    { codigo: 'A2.9', nombre: 'Depreciación Acumulada', tipo: 'ACTIVO', naturaleza: 'ACREEDORA' },
+  ];
+  let cuentas = [...state.cuentas];
+  let changed = false;
+  for (const acc of newAccounts) {
+    if (!cuentas.find(c => c.codigo === acc.codigo)) {
+      const isDeudora = acc.naturaleza ? acc.naturaleza === 'DEUDORA' : (acc.tipo === 'ACTIVO' || acc.tipo === 'GASTO');
+      cuentas.push({
+        id: generateId(), codigo: acc.codigo, nombre: acc.nombre, tipo: acc.tipo,
+        naturaleza: isDeudora ? 'DEUDORA' : 'ACREEDORA',
+        aumenta_en: isDeudora ? 'DEBE' : 'HABER',
+        disminuye_en: isDeudora ? 'HABER' : 'DEBE',
+        es_caja_banco: false, activa: true,
+      });
+      changed = true;
+    }
+  }
+  if (changed) return { ...state, cuentas };
+  return state;
+}
+
 function initState(): AccountingState {
   const saved = loadState();
   if (saved && saved.cuentas?.length > 0) {
     let s = migrateVentasCobros(saved);
     s = migrateInsumos(s);
     s = migrateProductosCuentaIngreso(s);
+    s = migrateNewAccounts(s);
     // Ensure arrays exist
     if (!s.recetas) s.recetas = [];
     if (!s.recetaInsumos) s.recetaInsumos = [];

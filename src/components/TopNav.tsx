@@ -2,7 +2,7 @@ import {
   LayoutDashboard, BookOpen, FileText, ShoppingCart,
   Factory, Package, Wallet, BookMarked, BarChart3,
   CalendarCheck, Settings, Warehouse, CookingPot, ChevronDown,
-  FileBarChart, Scale, Printer
+  FileBarChart, Scale, Printer, Users, Building2
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -28,6 +28,8 @@ const contabilidadItems = [
   { title: "Estado de Resultados", url: "/estado-resultados", icon: FileBarChart },
   { title: "Balance General", url: "/balance-general", icon: Scale },
   { title: "Reportes", url: "/reportes", icon: BarChart3 },
+  { title: "Planilla", url: "/planilla", icon: Users },
+  { title: "Activos Fijos", url: "/activos-fijos", icon: Building2 },
   { title: "Cierre Mensual", url: "/cierre-mensual", icon: CalendarCheck },
   { title: "Impresión Mensual", url: "/impresion-mensual", icon: Printer },
 ];
