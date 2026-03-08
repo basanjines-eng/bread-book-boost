@@ -30,6 +30,7 @@ const contabilidadItems = [
   { title: "Reportes", url: "/reportes", icon: BarChart3 },
   { title: "Planilla", url: "/planilla", icon: Users },
   { title: "Activos Fijos", url: "/activos-fijos", icon: Building2 },
+  { title: "Notas Contables", url: "/notas-contables", icon: StickyNote },
   { title: "Cierre Mensual", url: "/cierre-mensual", icon: CalendarCheck },
   { title: "Impresión Mensual", url: "/impresion-mensual", icon: Printer },
 ];
