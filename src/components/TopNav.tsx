@@ -25,6 +25,8 @@ const contabilidadItems = [
   { title: "Libro Diario", url: "/libro-diario", icon: FileText },
   { title: "Flujo de Caja", url: "/flujo-caja", icon: Wallet },
   { title: "Libro Mayor", url: "/libro-mayor", icon: BookMarked },
+  { title: "Estado de Resultados", url: "/estado-resultados", icon: FileBarChart },
+  { title: "Balance General", url: "/balance-general", icon: Scale },
   { title: "Reportes", url: "/reportes", icon: BarChart3 },
   { title: "Cierre Mensual", url: "/cierre-mensual", icon: CalendarCheck },
 ];

@@ -45,6 +45,8 @@ const App = () => (
               <Route path="/libro-mayor" element={<LibroMayorPage />} />
               <Route path="/reportes" element={<ReportesPage />} />
               <Route path="/cierre-mensual" element={<CierreMensualPage />} />
+              <Route path="/estado-resultados" element={<EstadoResultadosPage />} />
+              <Route path="/balance-general" element={<BalanceGeneralPage />} />
               <Route path="/configuracion" element={<ConfiguracionPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
