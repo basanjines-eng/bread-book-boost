@@ -33,18 +33,18 @@ function getEffectBadge(tipo: TipoCuenta, debe: number, haber: number) {
 
   const colorMap = {
     up: {
-      ACTIVO: "bg-emerald-100 text-emerald-700 border-emerald-200",
-      PASIVO: "bg-orange-100 text-orange-700 border-orange-200",
-      PATRIMONIO: "bg-violet-100 text-violet-700 border-violet-200",
-      INGRESO: "bg-blue-100 text-blue-700 border-blue-200",
-      GASTO: "bg-rose-100 text-rose-700 border-rose-200",
+      ACTIVO: "bg-transparent text-emerald-600 border-transparent",
+      PASIVO: "bg-transparent text-orange-600 border-transparent",
+      PATRIMONIO: "bg-transparent text-violet-600 border-transparent",
+      INGRESO: "bg-transparent text-blue-600 border-transparent",
+      GASTO: "bg-transparent text-rose-600 border-transparent",
     },
     down: {
-      ACTIVO: "bg-rose-100 text-rose-700 border-rose-200",
-      PASIVO: "bg-emerald-100 text-emerald-700 border-emerald-200",
-      PATRIMONIO: "bg-rose-100 text-rose-700 border-rose-200",
-      INGRESO: "bg-rose-100 text-rose-700 border-rose-200",
-      GASTO: "bg-emerald-100 text-emerald-700 border-emerald-200",
+      ACTIVO: "bg-transparent text-rose-600 border-transparent",
+      PASIVO: "bg-transparent text-emerald-600 border-transparent",
+      PATRIMONIO: "bg-transparent text-rose-600 border-transparent",
+      INGRESO: "bg-transparent text-rose-600 border-transparent",
+      GASTO: "bg-transparent text-emerald-600 border-transparent",
     },
   };
 
