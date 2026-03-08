@@ -236,7 +236,12 @@ export default function VentasPage() {
 
         {/* History */}
         <Card className="lg:col-span-2">
-          <CardHeader><CardTitle className="font-display">Historial de Ventas</CardTitle></CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="font-display">Historial de Ventas</CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => { recalcularCostosVentas(); toast.success("Costos recalculados correctamente"); }}>
+              <RefreshCw className="h-4 w-4 mr-1" /> Recalcular costos
+            </Button>
+          </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

@@ -889,7 +889,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     addMovimientoInsumo, editMovimientoInsumo, deleteMovimientoInsumo,
     addReceta, updateReceta, deleteReceta, getRecetaInsumos, calcularCostoReceta,
     addProduccion, confirmarProduccion, eliminarProduccion, editarProduccion, canModifyProduccion,
-    registrarVenta, eliminarVenta, editarVenta, updateStockMinimo,
+    registrarVenta, eliminarVenta, editarVenta, recalcularCostosVentas, updateStockMinimo,
     cerrarMes, reabrirMes, isMesCerrado,
     getCuenta, getCuentaByCodigo, getProducto, getInsumo, getStockForProducto, getStockForInsumo,
     getDetallesForComprobante, getComprobantesContabilizados, getDetallesContabilizados,
