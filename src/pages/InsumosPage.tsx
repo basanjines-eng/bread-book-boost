@@ -718,7 +718,7 @@ export default function InsumosPage() {
                           <td className="text-right py-2 px-2">{m.costo_total > 0 ? formatMoney(m.costo_total) : '-'}</td>
                           <td className="py-2 px-2 text-xs text-muted-foreground max-w-[150px] truncate">{m.motivo || m.proveedor || m.referencia || '-'}</td>
                           <td className="text-center py-2 px-2">
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive"
+                            <Button size="sm" variant="ghost" className="group h-7 w-7 p-0 text-destructive"
                               onClick={() => {
                                 const ok = deleteMovimientoInsumo(m.id);
                                 if (ok) toast.success("Movimiento eliminado");
