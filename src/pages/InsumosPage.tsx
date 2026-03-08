@@ -790,6 +790,17 @@ export default function InsumosPage() {
               <>
                 <div><Label>Precio Unitario (Bs)</Label><Input type="number" value={movPrecio} onChange={e => setMovPrecio(e.target.value)} min="0" /></div>
                 <div><Label>Proveedor</Label><Input value={movProveedor} onChange={e => setMovProveedor(e.target.value)} /></div>
+                <div>
+                  <Label>Cuenta de Pago *</Label>
+                  <Select value={movCuentaPagoId} onValueChange={setMovCuentaPagoId}>
+                    <SelectTrigger><SelectValue placeholder="Seleccionar cuenta" /></SelectTrigger>
+                    <SelectContent>
+                      {cuentas.filter(c => c.activa && (c.es_caja_banco || c.codigo === 'P1.1')).map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nombre}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </>
             )}
             {(movTipo === 'SALIDA' || movTipo === 'AJUSTE') && <div><Label>Motivo</Label><Input value={movMotivo} onChange={e => setMovMotivo(e.target.value)} /></div>}
