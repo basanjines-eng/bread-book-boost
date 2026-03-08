@@ -91,6 +91,18 @@ export function getNextIngresoCodigo(cuentas: Cuenta[]): string {
   return `I1.${next}`;
 }
 
+export function getInitialStock(productos: Producto[]): StockProducto[] {
+  return productos.map((p) => ({
+    id: generateId(),
+    producto_id: p.id,
+    cantidad_actual: 0,
+    valor_actual: 0,
+    costo_promedio: 0,
+    stock_minimo: 0,
+    updated_at: new Date().toISOString(),
+  }));
+}
+
 // ==================== INSUMOS INICIALES ====================
 type InsumoInit = {
   nombre: string;
