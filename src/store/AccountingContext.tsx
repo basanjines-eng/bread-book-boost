@@ -185,6 +185,7 @@ function initState(): AccountingState {
     let s = migrateVentasCobros(saved);
     s = migrateInsumos(s);
     s = migrateProductosCuentaIngreso(s);
+    s = migrateNewAccounts(s);
     // Ensure arrays exist
     if (!s.recetas) s.recetas = [];
     if (!s.recetaInsumos) s.recetaInsumos = [];
