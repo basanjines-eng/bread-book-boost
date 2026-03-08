@@ -552,7 +552,7 @@ export default function InsumosPage() {
                                     {movs.length === 0 ? (
                                       <p className="text-xs text-muted-foreground italic">Sin movimientos registrados aún.</p>
                                     ) : (
-                                      <div className="rounded-lg border border-border overflow-hidden">
+                                      <div className="rounded-lg border border-border overflow-hidden overflow-x-auto">
                                         <table className="w-full text-xs">
                                           <thead>
                                             <tr className="bg-muted/50 border-b border-border text-muted-foreground uppercase tracking-wide">
