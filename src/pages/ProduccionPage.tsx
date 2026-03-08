@@ -61,9 +61,9 @@ export default function ProduccionPage() {
   };
 
   const handleConfirmar = (id: string) => {
-    const ok = confirmarProduccion(id);
-    if (ok) toast.success("Producción confirmada — stock actualizado e insumos descontados");
-    else toast.error("Error al confirmar. Verifique que hay suficiente stock de insumos.");
+    const result = confirmarProduccion(id);
+    if (result.ok) toast.success("Producción confirmada — stock actualizado e insumos descontados");
+    else toast.error(result.faltante ? `Stock insuficiente de ${result.faltante}` : "Error al confirmar producción.");
   };
 
   const handleEdit = (id: string) => {
