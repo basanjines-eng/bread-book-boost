@@ -2,7 +2,7 @@ import {
   LayoutDashboard, BookOpen, FileText, ShoppingCart,
   Factory, Package, Wallet, BookMarked, BarChart3,
   CalendarCheck, Settings, Warehouse, CookingPot, ChevronDown,
-  FileBarChart, Scale, Printer
+  FileBarChart, Scale, Printer, Users, Building2
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
