@@ -741,7 +741,7 @@ export default function InsumosPage() {
 
       {/* Movimiento Form Dialog */}
       <Dialog open={showMovForm} onOpenChange={v => !v && resetMovForm()}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg top-[10%] translate-y-0 data-[state=closed]:slide-out-to-top-[5%] data-[state=open]:slide-in-from-top-[5%]">
           <DialogHeader>
             <DialogTitle>Registrar {movTipo === 'ENTRADA' ? 'Entrada / Compra' : movTipo === 'SALIDA' ? 'Salida / Uso' : 'Ajuste'}</DialogTitle>
           </DialogHeader>
@@ -812,10 +812,10 @@ export default function InsumosPage() {
               </div>
             )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={resetMovForm}>Cancelar</Button>
-            <Button onClick={handleSaveMovimiento}>Registrar</Button>
-          </DialogFooter>
+          <div className="grid grid-cols-2 gap-2 pt-2">
+            <Button variant="outline" onClick={resetMovForm} className="w-full">Cancelar</Button>
+            <Button onClick={handleSaveMovimiento} className="w-full">Registrar</Button>
+          </div>
         </DialogContent>
       </Dialog>
 
