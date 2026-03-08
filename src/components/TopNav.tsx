@@ -43,7 +43,7 @@ export function TopNav() {
               key={item.title}
               to={item.url}
               end={item.url === "/"}
-              className="nav-link flex items-center gap-1 px-2 py-1.5 rounded-md text-xs text-nav-muted whitespace-nowrap transition-all duration-150 hover:bg-nav-hover hover:text-nav-foreground shrink-0"
+              className="nav-link inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-xs text-nav-muted whitespace-nowrap transition-all duration-200 hover:bg-nav-hover hover:text-nav-foreground hover:scale-105 shrink-0"
               activeClassName="nav-link-active bg-nav-active text-nav-active-text font-semibold"
             >
               <item.icon className="h-3.5 w-3.5 shrink-0" />
