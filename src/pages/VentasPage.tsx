@@ -18,7 +18,7 @@ interface CobroLine {
 }
 
 export default function VentasPage() {
-  const { productos, cuentas, ventas, getProducto, getCuenta, registrarVenta, eliminarVenta, editarVenta, getStockForProducto, isMesCerrado } = useAccounting();
+  const { productos, cuentas, ventas, getProducto, getCuenta, registrarVenta, eliminarVenta, editarVenta, recalcularCostosVentas, getStockForProducto, isMesCerrado } = useAccounting();
 
   const [fecha, setFecha] = useState(today());
   const [productoId, setProductoId] = useState("");
