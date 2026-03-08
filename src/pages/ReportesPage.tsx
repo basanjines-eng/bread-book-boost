@@ -90,7 +90,7 @@ export default function ReportesPage() {
                     <td className="text-right py-2">{formatMoney(saldos.filter(s => s.cuenta.naturaleza === 'ACREEDORA' && s.saldo > 0).reduce((a, s) => a + s.saldo, 0))}</td>
                   </tr>
                 </tfoot>
-              </table>
+              </table></div>
             </CardContent>
           </Card>
         </TabsContent>
