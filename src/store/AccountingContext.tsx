@@ -590,12 +590,19 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
           return revertMovimiento(stk, mov);
         });
       }
+      // Mark production comprobante as deleted
+      const prodRecord = s.producciones.find(p => p.id === id);
+      const newComprobantes = prodRecord?.comprobante_id
+        ? s.comprobantes.map(c => c.id === prodRecord.comprobante_id ? { ...c, deleted_at: now } : c)
+        : s.comprobantes;
+
       return {
         ...s,
         stock: newStock,
         stockInsumos: newStockInsumos,
         movimientosInsumos: s.movimientosInsumos.map(m => m.referencia === `PROD-${id}` ? { ...m, deleted_at: now } : m),
         producciones: s.producciones.map(p => p.id === id ? { ...p, estado: 'ANULADA' as const, deleted_at: now } : p),
+        comprobantes: newComprobantes,
       };
     });
     return true;
