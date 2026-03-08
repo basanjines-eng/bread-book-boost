@@ -197,7 +197,7 @@ export default function ReportesPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </CardContent>
           </Card>
         </TabsContent>
