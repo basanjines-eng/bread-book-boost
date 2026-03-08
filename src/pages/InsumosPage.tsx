@@ -211,11 +211,12 @@ export default function InsumosPage() {
   const resetMovForm = () => {
     setMovInsumoId(""); setMovCantidad(""); setMovUnidad(""); setMovPrecio("");
     setMovProveedor(""); setMovReferencia(""); setMovObs(""); setMovMotivo("");
-    setMovFecha(today()); setMovFechaCompra(today());
+    setMovFecha(today()); setMovFechaCompra(today()); setMovCuentaPagoId("");
     setShowMovForm(false);
   };
   const handleSaveMovimiento = () => {
     if (!movInsumoId || !movCantidad) { toast.error("Insumo y cantidad son obligatorios"); return; }
+    if (movTipo === 'ENTRADA' && !movCuentaPagoId) { toast.error("Debe seleccionar una cuenta de pago"); return; }
     const ins = getInsumo(movInsumoId);
     if (!ins) return;
     const cantNum = parseFloat(movCantidad) || 0;
@@ -232,7 +233,7 @@ export default function InsumosPage() {
       cantidad_equivalente_base: cantEquiv, precio_unitario: precioUnit,
       costo_total: costoTotal, motivo: movMotivo, proveedor: movProveedor,
       referencia: movReferencia, observacion: movObs,
-    });
+    }, movTipo === 'ENTRADA' ? movCuentaPagoId : undefined);
     toast.success(`Movimiento registrado: ${movTipo}`);
     resetMovForm();
   };
