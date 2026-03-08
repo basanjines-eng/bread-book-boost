@@ -39,7 +39,7 @@ function insumoToEditRow(i: Insumo): EditRow {
 
 export default function InsumosPage() {
   const {
-    insumos, stockInsumos, movimientosInsumos, getInsumo, getStockForInsumo,
+    cuentas, insumos, stockInsumos, movimientosInsumos, getInsumo, getStockForInsumo,
     addInsumo, updateInsumo, deleteInsumo, addMovimientoInsumo, editMovimientoInsumo, deleteMovimientoInsumo,
   } = useAccounting();
 
@@ -124,6 +124,7 @@ export default function InsumosPage() {
   const [movObs, setMovObs] = useState("");
   const [movMotivo, setMovMotivo] = useState("");
   const [movAjusteTipo, setMovAjusteTipo] = useState<"sube" | "baja">("sube");
+  const [movCuentaPagoId, setMovCuentaPagoId] = useState("");
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
@@ -210,11 +211,12 @@ export default function InsumosPage() {
   const resetMovForm = () => {
     setMovInsumoId(""); setMovCantidad(""); setMovUnidad(""); setMovPrecio("");
     setMovProveedor(""); setMovReferencia(""); setMovObs(""); setMovMotivo("");
-    setMovFecha(today()); setMovFechaCompra(today());
+    setMovFecha(today()); setMovFechaCompra(today()); setMovCuentaPagoId("");
     setShowMovForm(false);
   };
   const handleSaveMovimiento = () => {
     if (!movInsumoId || !movCantidad) { toast.error("Insumo y cantidad son obligatorios"); return; }
+    if (movTipo === 'ENTRADA' && !movCuentaPagoId) { toast.error("Debe seleccionar una cuenta de pago"); return; }
     const ins = getInsumo(movInsumoId);
     if (!ins) return;
     const cantNum = parseFloat(movCantidad) || 0;
@@ -231,7 +233,7 @@ export default function InsumosPage() {
       cantidad_equivalente_base: cantEquiv, precio_unitario: precioUnit,
       costo_total: costoTotal, motivo: movMotivo, proveedor: movProveedor,
       referencia: movReferencia, observacion: movObs,
-    });
+    }, movTipo === 'ENTRADA' ? movCuentaPagoId : undefined);
     toast.success(`Movimiento registrado: ${movTipo}`);
     resetMovForm();
   };
@@ -788,6 +790,17 @@ export default function InsumosPage() {
               <>
                 <div><Label>Precio Unitario (Bs)</Label><Input type="number" value={movPrecio} onChange={e => setMovPrecio(e.target.value)} min="0" /></div>
                 <div><Label>Proveedor</Label><Input value={movProveedor} onChange={e => setMovProveedor(e.target.value)} /></div>
+                <div>
+                  <Label>Cuenta de Pago *</Label>
+                  <Select value={movCuentaPagoId} onValueChange={setMovCuentaPagoId}>
+                    <SelectTrigger><SelectValue placeholder="Seleccionar cuenta" /></SelectTrigger>
+                    <SelectContent>
+                      {cuentas.filter(c => c.activa && (c.es_caja_banco || c.codigo === 'P1.1')).map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nombre}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </>
             )}
             {(movTipo === 'SALIDA' || movTipo === 'AJUSTE') && <div><Label>Motivo</Label><Input value={movMotivo} onChange={e => setMovMotivo(e.target.value)} /></div>}

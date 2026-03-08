@@ -42,7 +42,7 @@ interface AccountingContextType extends AccountingState {
   updateInsumo: (i: Insumo) => void;
   deleteInsumo: (id: string) => void;
   // Movimientos Insumos
-  addMovimientoInsumo: (m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>) => void;
+  addMovimientoInsumo: (m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>, cuenta_pago_id?: string) => void;
   editMovimientoInsumo: (id: string, m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>) => boolean;
   deleteMovimientoInsumo: (id: string) => boolean;
   // Recetas
@@ -290,7 +290,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
-  const addMovimientoInsumo = useCallback((m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>) => {
+  const addMovimientoInsumo = useCallback((m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>, cuenta_pago_id?: string) => {
     const now = new Date().toISOString();
     const id = generateId();
     setState(s => {
@@ -298,10 +298,37 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         if (stk.insumo_id !== m.insumo_id) return stk;
         return applyMovimiento(stk, m);
       });
+
+      let newComprobantes = s.comprobantes;
+      let newDetalles = s.detalles;
+
+      // Generate journal entry for ENTRADA with cuenta_pago_id
+      if (m.tipo_movimiento === 'ENTRADA' && cuenta_pago_id && m.costo_total > 0) {
+        const cInvInsumos = s.cuentas.find(c => c.codigo === 'A1.6');
+        if (cInvInsumos) {
+          const insumo = s.insumos.find(i => i.id === m.insumo_id);
+          const compId = generateId();
+          const numero = generateNumero(m.fecha, s.comprobantes.length);
+          const comp: Comprobante = {
+            id: compId, numero, fecha: m.fecha,
+            glosa: `Compra: ${insumo?.nombre || ''} ${m.cantidad} ${m.unidad_movimiento} @ ${m.precio_unitario}`,
+            estado: 'CONTABILIZADO', created_at: now, updated_at: now,
+          };
+          const dets: ComprobanteDetalle[] = [
+            { id: generateId(), comprobante_id: compId, cuenta_id: cInvInsumos.id, descripcion: `Compra insumo ${insumo?.nombre || ''}`, debe: m.costo_total, haber: 0 },
+            { id: generateId(), comprobante_id: compId, cuenta_id: cuenta_pago_id, descripcion: `Pago compra ${insumo?.nombre || ''}`, debe: 0, haber: m.costo_total },
+          ];
+          newComprobantes = [...newComprobantes, comp];
+          newDetalles = [...newDetalles, ...dets];
+        }
+      }
+
       return {
         ...s,
         movimientosInsumos: [...s.movimientosInsumos, { ...m, id, created_at: now, updated_at: now }],
         stockInsumos: newStockInsumos,
+        comprobantes: newComprobantes,
+        detalles: newDetalles,
       };
     });
   }, []);
@@ -478,12 +505,38 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         return { ...st, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : 0, updated_at: now };
       });
 
+      // Generate accounting entry for production
+      const cProdTerm = s.cuentas.find(c => c.codigo === 'A1.7');
+      const cInvInsumos = s.cuentas.find(c => c.codigo === 'A1.6');
+      let newComprobantes = s.comprobantes;
+      let newDetalles = s.detalles;
+      let compIdProduccion: string | undefined;
+
+      if (cProdTerm && cInvInsumos && costoConfirmado > 0) {
+        compIdProduccion = generateId();
+        const productoNombre = s.productos.find(p => p.id === prod.producto_id)?.nombre || '';
+        const numero = generateNumero(prod.fecha, s.comprobantes.length);
+        const comp: Comprobante = {
+          id: compIdProduccion, numero, fecha: prod.fecha,
+          glosa: `Producción: ${productoNombre} x${prod.cantidad_producida} (${prod.cantidad_lotes} lotes)`,
+          estado: 'CONTABILIZADO', created_at: now, updated_at: now,
+        };
+        const dets: ComprobanteDetalle[] = [
+          { id: generateId(), comprobante_id: compIdProduccion, cuenta_id: cProdTerm.id, descripcion: `Producción ${productoNombre}`, debe: costoConfirmado, haber: 0 },
+          { id: generateId(), comprobante_id: compIdProduccion, cuenta_id: cInvInsumos.id, descripcion: `Consumo insumos ${productoNombre}`, debe: 0, haber: costoConfirmado },
+        ];
+        newComprobantes = [...newComprobantes, comp];
+        newDetalles = [...newDetalles, ...dets];
+      }
+
       return {
         ...s,
-        producciones: s.producciones.map(p => p.id === id ? { ...p, estado: 'CONFIRMADA' as const, costo_total_produccion: costoConfirmado, costo_unitario: costoUnitarioConfirmado } : p),
+        producciones: s.producciones.map(p => p.id === id ? { ...p, estado: 'CONFIRMADA' as const, costo_total_produccion: costoConfirmado, costo_unitario: costoUnitarioConfirmado, comprobante_id: compIdProduccion } : p),
         stock: newStock,
         stockInsumos: newStockInsumos,
         movimientosInsumos: newMovimientos,
+        comprobantes: newComprobantes,
+        detalles: newDetalles,
       };
     });
     return { ok: true };
@@ -537,12 +590,19 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
           return revertMovimiento(stk, mov);
         });
       }
+      // Mark production comprobante as deleted
+      const prodRecord = s.producciones.find(p => p.id === id);
+      const newComprobantes = prodRecord?.comprobante_id
+        ? s.comprobantes.map(c => c.id === prodRecord.comprobante_id ? { ...c, deleted_at: now } : c)
+        : s.comprobantes;
+
       return {
         ...s,
         stock: newStock,
         stockInsumos: newStockInsumos,
         movimientosInsumos: s.movimientosInsumos.map(m => m.referencia === `PROD-${id}` ? { ...m, deleted_at: now } : m),
         producciones: s.producciones.map(p => p.id === id ? { ...p, estado: 'ANULADA' as const, deleted_at: now } : p),
+        comprobantes: newComprobantes,
       };
     });
     return true;
