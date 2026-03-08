@@ -135,7 +135,7 @@ function initState(): AccountingState {
     return s;
   }
   const cuentas = getInitialCuentas();
-  const productos = getInitialProductos();
+  const productos = getInitialProductos(cuentas);
   const stock = getInitialStock(productos);
   const insumos = getInitialInsumos();
   const stockInsumos = getInitialStockInsumos(insumos);
