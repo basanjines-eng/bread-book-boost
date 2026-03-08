@@ -31,6 +31,8 @@ interface AccountingContextType extends AccountingState {
   // Cuentas
   addCuenta: (c: Omit<Cuenta, 'id'>) => void;
   updateCuenta: (c: Cuenta) => void;
+  // Productos
+  addProducto: (nombre: string) => void;
   // Comprobantes
   addComprobante: (comp: Omit<Comprobante, 'id' | 'numero' | 'created_at' | 'updated_at'>, dets: Omit<ComprobanteDetalle, 'id' | 'comprobante_id'>[]) => string;
   updateComprobante: (comp: Comprobante, dets: Omit<ComprobanteDetalle, 'id' | 'comprobante_id'>[]) => void;
