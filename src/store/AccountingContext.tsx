@@ -52,7 +52,7 @@ interface AccountingContextType extends AccountingState {
   calcularCostoReceta: (recetaId: string) => number;
   // Produccion
   addProduccion: (p: Omit<Produccion, 'id' | 'costo_unitario' | 'costo_total_produccion'>) => void;
-  confirmarProduccion: (id: string) => boolean;
+  confirmarProduccion: (id: string) => { ok: boolean; faltante?: string };
   eliminarProduccion: (id: string) => boolean;
   editarProduccion: (id: string, data: { fecha: string; producto_id: string; receta_id?: string; cantidad_lotes: number; cantidad_producida: number }) => boolean;
   canModifyProduccion: (id: string) => { ok: boolean; reason?: string };
@@ -402,20 +402,35 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     setState(s => ({ ...s, producciones: [...s.producciones, { ...p, id: generateId(), costo_total_produccion: costoTotal, costo_unitario }] }));
   }, [calcularCostoReceta]);
 
-  const confirmarProduccion = useCallback((id: string): boolean => {
+  const confirmarProduccion = useCallback((id: string): { ok: boolean; faltante?: string } => {
     const prod = state.producciones.find(p => p.id === id);
-    if (!prod || prod.estado === 'CONFIRMADA') return false;
+    if (!prod || prod.estado === 'CONFIRMADA') return { ok: false };
 
     // Deduct insumos from stock if recipe exists
     if (prod.receta_id) {
       const ingredientes = state.recetaInsumos.filter(ri => ri.receta_id === prod.receta_id);
-      // Check sufficient stock
+      // Check sufficient stock — return which insumo is failing
       for (const ri of ingredientes) {
         const stk = state.stockInsumos.find(s => s.insumo_id === ri.insumo_id);
         const needed = ri.cantidad_usada * prod.cantidad_lotes;
-        if (!stk || stk.cantidad_actual < needed) return false;
+        if (!stk || stk.cantidad_actual < needed) {
+          const nombreInsumo = state.insumos.find(i => i.id === ri.insumo_id)?.nombre || ri.insumo_id;
+          const disponible = stk?.cantidad_actual ?? 0;
+          return { ok: false, faltante: `"${nombreInsumo}" (necesario: ${needed.toFixed(2)}, disponible: ${disponible.toFixed(2)})` };
+        }
       }
     }
+
+    // Recalculate cost at confirmation time using CURRENT CPP (not the CPP from when it was registered)
+    let costoConfirmado = 0;
+    if (prod.receta_id) {
+      const ingredientes = state.recetaInsumos.filter(ri => ri.receta_id === prod.receta_id);
+      costoConfirmado = ingredientes.reduce((total, ri) => {
+        const stk = state.stockInsumos.find(s => s.insumo_id === ri.insumo_id);
+        return total + (ri.cantidad_usada * prod.cantidad_lotes * (stk?.costo_promedio || 0));
+      }, 0);
+    }
+    const costoUnitarioConfirmado = prod.cantidad_producida > 0 ? costoConfirmado / prod.cantidad_producida : 0;
 
     const now = new Date().toISOString();
     setState(s => {
@@ -456,13 +471,13 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
 
       return {
         ...s,
-        producciones: s.producciones.map(p => p.id === id ? { ...p, estado: 'CONFIRMADA' as const } : p),
+        producciones: s.producciones.map(p => p.id === id ? { ...p, estado: 'CONFIRMADA' as const, costo_total_produccion: costoConfirmado, costo_unitario: costoUnitarioConfirmado } : p),
         stock: newStock,
         stockInsumos: newStockInsumos,
         movimientosInsumos: newMovimientos,
       };
     });
-    return true;
+    return { ok: true };
   }, [state.producciones, state.recetaInsumos, state.stockInsumos]);
 
   const canModifyProduccion = useCallback((id: string): { ok: boolean; reason?: string } => {
@@ -521,7 +536,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         producciones: s.producciones.map(p => p.id === id ? { ...p, estado: 'ANULADA' as const, deleted_at: now } : p),
       };
     });
-    return true;
+    return { ok: true };
   }, [state.producciones, state.stock, canModifyProduccion]);
 
   const editarProduccion = useCallback((id: string, data: { fecha: string; producto_id: string; receta_id?: string; cantidad_lotes: number; cantidad_producida: number }): boolean => {
