@@ -42,6 +42,12 @@ export function getInitialCuentas(): Cuenta[] {
       es_caja_banco: esCaja, activa: true,
     };
   };
+  const makeCustom = (codigo: string, nombre: string, tipo: Cuenta['tipo'], naturaleza: 'DEUDORA' | 'ACREEDORA'): Cuenta => ({
+    id: generateId(), codigo, nombre, tipo, naturaleza,
+    aumenta_en: naturaleza === 'DEUDORA' ? 'DEBE' : 'HABER',
+    disminuye_en: naturaleza === 'DEUDORA' ? 'HABER' : 'DEBE',
+    es_caja_banco: false, activa: true,
+  });
 
   return [
     make('A1.1', 'Caja', 'ACTIVO', true),
