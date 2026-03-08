@@ -61,6 +61,7 @@ interface AccountingContextType extends AccountingState {
   registrarVenta: (v: { fecha: string; producto_id: string; cantidad_vendida: number; total_venta: number; cobros: VentaCobro[] }) => string | null;
   eliminarVenta: (id: string) => boolean;
   editarVenta: (id: string, v: { fecha: string; producto_id: string; cantidad_vendida: number; total_venta: number; cobros: VentaCobro[] }) => boolean;
+  recalcularCostosVentas: () => void;
   // Stock
   updateStockMinimo: (producto_id: string, minimo: number) => void;
   // Cierres
