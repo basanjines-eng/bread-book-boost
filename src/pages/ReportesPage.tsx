@@ -58,7 +58,7 @@ export default function ReportesPage() {
           <Card>
             <CardHeader><CardTitle className="font-display">Balance de Comprobación</CardTitle></CardHeader>
             <CardContent>
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto"><table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-2">Código</th>
@@ -90,7 +90,7 @@ export default function ReportesPage() {
                     <td className="text-right py-2">{formatMoney(saldos.filter(s => s.cuenta.naturaleza === 'ACREEDORA' && s.saldo > 0).reduce((a, s) => a + s.saldo, 0))}</td>
                   </tr>
                 </tfoot>
-              </table>
+              </table></div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -178,7 +178,7 @@ export default function ReportesPage() {
           <Card>
             <CardHeader><CardTitle className="font-display">Saldos de Todas las Cuentas</CardTitle></CardHeader>
             <CardContent>
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto"><table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-2">Código</th>
@@ -197,7 +197,7 @@ export default function ReportesPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </CardContent>
           </Card>
         </TabsContent>
