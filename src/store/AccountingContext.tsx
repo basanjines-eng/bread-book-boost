@@ -662,7 +662,13 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     const totalCobros = v.cobros.reduce((s, c) => s + c.monto, 0);
     if (Math.abs(totalCobros - v.total_venta) > 0.01) return null;
 
-    const costoTotal = stk.costo_promedio * v.cantidad_vendida;
+    // Usar costo_unitario de la última producción confirmada del producto
+    const ultimaProduccion = state.producciones
+      .filter(p => p.producto_id === v.producto_id && p.estado === 'CONFIRMADA' && !p.deleted_at)
+      .sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
+
+    const costoUnitario = ultimaProduccion?.costo_unitario ?? stk.costo_promedio;
+    const costoTotal = costoUnitario * v.cantidad_vendida;
     const margen = v.total_venta - costoTotal;
     const margenPct = v.total_venta > 0 ? (margen / v.total_venta) * 100 : 0;
 
@@ -696,7 +702,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     const newVenta: Venta = {
       id: ventaId, fecha: v.fecha, producto_id: v.producto_id,
       cantidad_vendida: v.cantidad_vendida, total_venta: v.total_venta,
-      costo_total_venta: costoTotal, costo_unitario_aplicado: stk.costo_promedio,
+      costo_total_venta: costoTotal, costo_unitario_aplicado: costoUnitario,
       margen, margen_porcentaje: margenPct,
       forma_cobro_cuenta_id: v.cobros[0]?.cuenta_id || '',
       cobros: v.cobros, cuenta_ingreso_id: cIngreso.id, comprobante_id: compId, estado: 'ACTIVA',
