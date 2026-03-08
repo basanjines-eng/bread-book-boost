@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { formatMoney, formatDate, today } from "@/lib/accounting";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, AlertTriangle, Plus, X } from "lucide-react";
+import { Pencil, Trash2, AlertTriangle, Plus, X, RefreshCw } from "lucide-react";
 import type { VentaCobro } from "@/types/accounting";
 
 interface CobroLine {
