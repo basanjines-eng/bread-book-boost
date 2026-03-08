@@ -7,8 +7,8 @@ import type {
 import {
   generateId, generateNumero, today,
   getInitialCuentas, getInitialProductos, getInitialStock,
-  getCuentaIngresoForProducto, getInitialInsumos, getInitialStockInsumos,
-  getInitialRecetas,
+  getInitialInsumos, getInitialStockInsumos,
+  getInitialRecetas, getNextIngresoCodigo,
 } from '@/lib/accounting';
 
 interface AccountingState {
