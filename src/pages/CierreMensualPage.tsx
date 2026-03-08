@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAccounting } from "@/store/AccountingContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,10 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Lock, Unlock } from "lucide-react";
+import { Lock, Unlock, FileDown } from "lucide-react";
 
 export default function CierreMensualPage() {
   const { cierres, cerrarMes, reabrirMes } = useAccounting();
+  const navigate = useNavigate();
   const [anio, setAnio] = useState(new Date().getFullYear());
   const [nota, setNota] = useState("");
 
@@ -22,6 +24,11 @@ export default function CierreMensualPage() {
     cerrarMes(anio, mes, nota);
     toast.success(`${meses[mes - 1]} ${anio} cerrado`);
     setNota("");
+  };
+
+  const handleExportar = (mes: number) => {
+    const mesStr = `${anio}-${String(mes).padStart(2, '0')}`;
+    navigate(`/impresion-mensual?mes=${mesStr}`);
   };
 
   return (
@@ -49,9 +56,14 @@ export default function CierreMensualPage() {
                   </Badge>
                 </div>
                 {cerrado ? (
-                  <Button variant="outline" size="sm" className="w-full" onClick={() => { reabrirMes(anio, i + 1); toast.info(`${m} reabierto`); }}>
-                    <Unlock className="h-3 w-3 mr-1" />Reabrir
-                  </Button>
+                  <div className="space-y-2">
+                    <Button variant="outline" size="sm" className="w-full" onClick={() => { reabrirMes(anio, i + 1); toast.info(`${m} reabierto`); }}>
+                      <Unlock className="h-3 w-3 mr-1" />Reabrir
+                    </Button>
+                    <Button variant="ghost" size="sm" className="w-full" onClick={() => handleExportar(i + 1)}>
+                      <FileDown className="h-3 w-3 mr-1" />Exportar PDF del mes
+                    </Button>
+                  </div>
                 ) : (
                   <Button size="sm" className="w-full" onClick={() => handleCerrar(i + 1)}>
                     <Lock className="h-3 w-3 mr-1" />Cerrar Mes

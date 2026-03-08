@@ -29,6 +29,7 @@ const contabilidadItems = [
   { title: "Balance General", url: "/balance-general", icon: Scale },
   { title: "Reportes", url: "/reportes", icon: BarChart3 },
   { title: "Cierre Mensual", url: "/cierre-mensual", icon: CalendarCheck },
+  { title: "Impresión Mensual", url: "/impresion-mensual", icon: Printer },
 ];
 
 const contabilidadPaths = contabilidadItems.map(i => i.url);
