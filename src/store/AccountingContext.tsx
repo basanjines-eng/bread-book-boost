@@ -830,6 +830,39 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     return true;
   }, [state, isMesCerrado]);
 
+  const recalcularCostosVentas = useCallback(() => {
+    setState(s => {
+      const ventasCorregidas = s.ventas.map(venta => {
+        if (venta.estado !== 'ACTIVA' || venta.deleted_at) return venta;
+
+        const produccion = s.producciones
+          .filter(p => p.producto_id === venta.producto_id && p.estado === 'CONFIRMADA' && !p.deleted_at && p.fecha <= venta.fecha)
+          .sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
+
+        const costoUnitario = produccion?.costo_unitario ?? venta.costo_unitario_aplicado;
+        const costoTotal = costoUnitario * venta.cantidad_vendida;
+        const margen = venta.total_venta - costoTotal;
+        const margenPct = venta.total_venta > 0 ? (margen / venta.total_venta) * 100 : 0;
+
+        return { ...venta, costo_unitario_aplicado: costoUnitario, costo_total_venta: costoTotal, margen, margen_porcentaje: margenPct };
+      });
+
+      const detallesCorregidos = s.detalles.map(d => {
+        const venta = ventasCorregidas.find(v => v.comprobante_id === d.comprobante_id);
+        if (!venta) return d;
+        const ventaOriginal = s.ventas.find(v => v.comprobante_id === d.comprobante_id);
+        if (!ventaOriginal) return d;
+        const cCostoVentas = s.cuentas.find(c => c.codigo === 'G1.7');
+        const cProdTerm = s.cuentas.find(c => c.codigo === 'A1.7');
+        if (cCostoVentas && d.cuenta_id === cCostoVentas.id) return { ...d, debe: venta.costo_total_venta, haber: 0 };
+        if (cProdTerm && d.cuenta_id === cProdTerm.id) return { ...d, debe: 0, haber: venta.costo_total_venta };
+        return d;
+      });
+
+      return { ...s, ventas: ventasCorregidas, detalles: detallesCorregidos };
+    });
+  }, []);
+
   const updateStockMinimo = useCallback((producto_id: string, minimo: number) => {
     setState(s => ({ ...s, stock: s.stock.map(st => st.producto_id === producto_id ? { ...st, stock_minimo: minimo } : st) }));
   }, []);
