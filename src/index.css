@@ -1,0 +1,158 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Sora:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    /*
+      Palette:
+      1. #bfbfbf → medium gray    → nav bg, brand, primary actions
+      2. #cececd → soft gray-green → secondary, muted elements
+      3. #dbdcda → light gray     → borders, accents, card bg
+      4. #ebebeb → pale gray      → background
+    */
+
+    --background: 0 0% 92%;            /* #ebebeb pale gray */
+    --foreground: 0 0% 20%;            /* dark gray text */
+
+    --card: 0 0% 100%;                 /* white cards for contrast */
+    --card-foreground: 0 0% 20%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 20%;
+
+    /* Primary: #bfbfbf medium gray */
+    --primary: 0 0% 75%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary: #cececd */
+    --secondary: 60 1% 81%;
+    --secondary-foreground: 0 0% 20%;
+
+    /* Muted */
+    --muted: 90 3% 86%;                /* #dbdcda */
+    --muted-foreground: 0 0% 45%;
+
+    /* Accent */
+    --accent: 90 3% 86%;
+    --accent-foreground: 0 0% 20%;
+
+    --destructive: 4 65% 52%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 40% 42%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 35 80% 50%;
+    --warning-foreground: 0 0% 15%;
+
+    --border: 90 3% 86%;               /* #dbdcda */
+    --input: 60 1% 88%;
+    --ring: 0 0% 75%;
+
+    --radius: 0.75rem;
+
+    /* ── TopNav tokens ── */
+    --nav-bg: 0 0% 75%;                /* #bfbfbf */
+    --nav-border: 0 0% 68%;
+    --nav-foreground: 0 0% 100%;       /* white text */
+    --nav-muted: 0 0% 92%;             /* pale gray inactive */
+    --nav-hover-bg: 0 0% 68%;          /* slightly darker */
+    --nav-active-bg: 0 0% 55%;         /* active state */
+    --nav-active-text: 0 0% 100%;
+    --nav-dropdown-bg: 0 0% 100%;
+    --brand-accent: 0 0% 55%;
+
+    --chart-1: 0 0% 75%;
+    --chart-2: 60 1% 81%;
+    --chart-3: 90 3% 86%;
+    --chart-4: 35 80% 50%;
+    --chart-5: 4 65% 52%;
+
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+
+  .dark {
+    --background: 0 0% 15%;
+    --foreground: 0 0% 92%;
+    --card: 0 0% 18%;
+    --card-foreground: 0 0% 92%;
+    --popover: 0 0% 18%;
+    --popover-foreground: 0 0% 92%;
+    --primary: 60 1% 81%;
+    --primary-foreground: 0 0% 15%;
+    --secondary: 0 0% 22%;
+    --secondary-foreground: 60 1% 81%;
+    --muted: 0 0% 22%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 0 0% 25%;
+    --accent-foreground: 60 1% 81%;
+    --destructive: 4 58% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 35% 42%;
+    --success-foreground: 0 0% 100%;
+    --warning: 35 65% 50%;
+    --warning-foreground: 0 0% 12%;
+    --border: 0 0% 25%;
+    --input: 0 0% 25%;
+    --ring: 60 1% 81%;
+
+    --nav-bg: 0 0% 12%;
+    --nav-border: 0 0% 18%;
+    --nav-foreground: 0 0% 92%;
+    --nav-muted: 0 0% 60%;
+    --nav-hover-bg: 0 0% 18%;
+    --nav-active-bg: 0 0% 75%;
+    --nav-active-text: 0 0% 100%;
+    --nav-dropdown-bg: 0 0% 18%;
+    --brand-accent: 60 1% 81%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Sora', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Sora', system-ui, sans-serif;
+  }
+
+  .top-nav-header {
+    background-color: hsl(var(--nav-bg));
+    border-color: hsl(var(--nav-border));
+  }
+
+  .nav-link {
+    color: hsl(var(--nav-muted));
+  }
+
+  .nav-link:hover {
+    background-color: hsl(var(--nav-hover-bg));
+    color: hsl(var(--nav-foreground));
+  }
+
+  .nav-link-active {
+    background-color: hsl(var(--nav-active-bg)) !important;
+    color: hsl(var(--nav-active-text)) !important;
+  }
+
+  .text-nav-foreground { color: hsl(var(--nav-foreground)); }
+  .text-nav-muted { color: hsl(var(--nav-muted)); }
+  .bg-nav-hover { background-color: hsl(var(--nav-hover-bg)); }
+  .bg-nav-active { background-color: hsl(var(--nav-active-bg)); }
+  .text-nav-active-text { color: hsl(var(--nav-active-text)); }
+  .bg-nav-dropdown { background-color: hsl(var(--nav-dropdown-bg)); }
+  .border-nav-border { border-color: hsl(var(--nav-border)); }
+  .bg-brand-accent { background-color: hsl(var(--brand-accent)); }
+}
