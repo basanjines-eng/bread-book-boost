@@ -71,33 +71,24 @@ export function getInitialCuentas(): Cuenta[] {
   ];
 }
 
-export function getInitialProductos(): Producto[] {
-  return [
-    { id: generateId(), nombre: 'Pan', activo: true },
-    { id: generateId(), nombre: 'Queque de Plátano', activo: true },
-    { id: generateId(), nombre: 'Queque de Naranja', activo: true },
-  ];
-}
-
-export function getInitialStock(productos: Producto[]): StockProducto[] {
-  return productos.map((p) => ({
-    id: generateId(),
-    producto_id: p.id,
-    cantidad_actual: 0,
-    valor_actual: 0,
-    costo_promedio: 0,
-    stock_minimo: 0,
-    updated_at: new Date().toISOString(),
-  }));
-}
-
-export function getCuentaIngresoForProducto(productoNombre: string): string {
-  const map: Record<string, string> = {
+export function getInitialProductos(cuentas: Cuenta[]): Producto[] {
+  const cuentaMap: Record<string, string> = {
     'Pan': 'I1.1',
     'Queque de Plátano': 'I1.2',
     'Queque de Naranja': 'I1.3',
   };
-  return map[productoNombre] || 'I1.1';
+  return [
+    { id: generateId(), nombre: 'Pan', cuenta_ingreso_id: cuentas.find(c => c.codigo === cuentaMap['Pan'])?.id, activo: true },
+    { id: generateId(), nombre: 'Queque de Plátano', cuenta_ingreso_id: cuentas.find(c => c.codigo === cuentaMap['Queque de Plátano'])?.id, activo: true },
+    { id: generateId(), nombre: 'Queque de Naranja', cuenta_ingreso_id: cuentas.find(c => c.codigo === cuentaMap['Queque de Naranja'])?.id, activo: true },
+  ];
+}
+
+export function getNextIngresoCodigo(cuentas: Cuenta[]): string {
+  const ingresoCuentas = cuentas.filter(c => c.tipo === 'INGRESO' && c.codigo.startsWith('I1.'));
+  const nums = ingresoCuentas.map(c => parseInt(c.codigo.split('.')[1])).filter(n => !isNaN(n));
+  const next = nums.length > 0 ? Math.max(...nums) + 1 : 1;
+  return `I1.${next}`;
 }
 
 // ==================== INSUMOS INICIALES ====================
