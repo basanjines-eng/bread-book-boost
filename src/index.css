@@ -156,3 +156,217 @@
   .border-nav-border { border-color: hsl(var(--nav-border)); }
   .bg-brand-accent { background-color: hsl(var(--brand-accent)); }
 }
+
+/* ============ PRINT STYLES ============ */
+
+/* On screen, hide printable content */
+.print-content {
+  display: none;
+}
+
+@media print {
+  /* Hide everything except print content */
+  body * {
+    visibility: hidden;
+  }
+  .print-content,
+  .print-content * {
+    visibility: visible !important;
+  }
+  .print-content {
+    display: block !important;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+  header, nav, .top-nav-header, .sidebar, [data-sonner-toaster] {
+    display: none !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 2cm;
+  }
+
+  body {
+    font-family: 'Georgia', 'Times New Roman', serif !important;
+    font-size: 11pt !important;
+    color: #000 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .print-page-break {
+    page-break-before: always;
+  }
+
+  .print-section {
+    margin-bottom: 1.5rem;
+  }
+
+  .print-empresa-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #000;
+  }
+  .print-empresa-header h1 {
+    font-size: 20pt;
+    font-weight: bold;
+    margin: 0;
+    letter-spacing: 1px;
+  }
+  .print-empresa-header p {
+    font-size: 10pt;
+    margin: 2px 0 0 0;
+    color: #333;
+  }
+
+  .print-title {
+    font-size: 14pt;
+    font-weight: bold;
+    text-align: center;
+    margin: 0.75rem 0 0.5rem 0;
+    border-bottom: 1px solid #000;
+    padding-bottom: 4px;
+  }
+
+  .print-subtitle {
+    text-align: center;
+    font-size: 10pt;
+    margin: 0 0 0.75rem 0;
+    color: #333;
+  }
+
+  .print-info-table {
+    width: auto;
+    margin: 0 auto;
+    border-collapse: collapse;
+  }
+  .print-info-table td {
+    padding: 2px 12px;
+    font-size: 10pt;
+  }
+  .print-label {
+    font-weight: bold;
+    text-align: right;
+  }
+
+  /* Comprobantes */
+  .print-comprobante {
+    margin-bottom: 1rem;
+    page-break-inside: avoid;
+  }
+  .print-comp-header {
+    font-size: 10pt;
+    margin-bottom: 2px;
+  }
+  .print-comp-glosa {
+    font-size: 9pt;
+    font-style: italic;
+    margin-bottom: 4px;
+    color: #333;
+  }
+
+  /* Tables */
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+    margin-bottom: 0.5rem;
+  }
+  .print-table th,
+  .print-table td {
+    border: 1px solid #666;
+    padding: 3px 6px;
+  }
+  .print-table thead {
+    background: none;
+  }
+  .print-th-left {
+    text-align: left;
+    font-weight: bold;
+  }
+  .print-th-right {
+    text-align: right;
+    font-weight: bold;
+  }
+
+  .print-money {
+    text-align: right !important;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .print-total-row {
+    border-top: 2px solid #000 !important;
+    font-weight: bold;
+  }
+  .print-total-row td {
+    border-top: 2px solid #000 !important;
+  }
+  .print-total-label {
+    text-align: right;
+    font-weight: bold;
+  }
+
+  /* Estado de Resultados */
+  .print-edoresultados {
+    width: 70%;
+    margin: 0 auto;
+    border: none;
+  }
+  .print-edoresultados td {
+    border: none;
+    border-bottom: 1px solid #ddd;
+    padding: 4px 8px;
+  }
+  .print-group-header td {
+    font-weight: bold;
+    padding-top: 10px !important;
+    border-bottom: none !important;
+  }
+  .print-indent {
+    padding-left: 24px !important;
+  }
+  .print-subtotal td {
+    border-top: 1px solid #000 !important;
+    border-bottom: 1px solid #000 !important;
+    font-weight: bold;
+  }
+  .print-result td {
+    border-top: 2px solid #000 !important;
+    font-weight: bold;
+    padding-top: 6px !important;
+  }
+  .print-final-result td {
+    border-top: 3px double #000 !important;
+    border-bottom: 3px double #000 !important;
+    font-size: 11pt;
+  }
+
+  /* Balance General */
+  .print-balance-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+  .print-balance-title {
+    font-size: 11pt;
+    font-weight: bold;
+    margin: 0 0 0.25rem 0;
+    border-bottom: 1px solid #000;
+    padding-bottom: 2px;
+  }
+
+  .print-empty {
+    text-align: center;
+    font-style: italic;
+    color: #666;
+    margin: 1rem 0;
+  }
+}
