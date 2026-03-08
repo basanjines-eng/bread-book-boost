@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { formatMoney, formatDate, today } from "@/lib/accounting";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, AlertTriangle, Plus, X } from "lucide-react";
+import { Pencil, Trash2, AlertTriangle, Plus, X, RefreshCw } from "lucide-react";
 import type { VentaCobro } from "@/types/accounting";
 
 interface CobroLine {
@@ -18,7 +18,7 @@ interface CobroLine {
 }
 
 export default function VentasPage() {
-  const { productos, cuentas, ventas, getProducto, getCuenta, registrarVenta, eliminarVenta, editarVenta, getStockForProducto, isMesCerrado } = useAccounting();
+  const { productos, cuentas, ventas, getProducto, getCuenta, registrarVenta, eliminarVenta, editarVenta, recalcularCostosVentas, getStockForProducto, isMesCerrado } = useAccounting();
 
   const [fecha, setFecha] = useState(today());
   const [productoId, setProductoId] = useState("");
@@ -236,7 +236,12 @@ export default function VentasPage() {
 
         {/* History */}
         <Card className="lg:col-span-2">
-          <CardHeader><CardTitle className="font-display">Historial de Ventas</CardTitle></CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="font-display">Historial de Ventas</CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => { recalcularCostosVentas(); toast.success("Costos recalculados correctamente"); }}>
+              <RefreshCw className="h-4 w-4 mr-1" /> Recalcular costos
+            </Button>
+          </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
