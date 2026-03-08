@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAccounting } from "@/store/AccountingContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
