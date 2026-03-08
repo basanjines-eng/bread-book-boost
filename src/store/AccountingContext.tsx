@@ -702,7 +702,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     const newVenta: Venta = {
       id: ventaId, fecha: v.fecha, producto_id: v.producto_id,
       cantidad_vendida: v.cantidad_vendida, total_venta: v.total_venta,
-      costo_total_venta: costoTotal, costo_unitario_aplicado: stk.costo_promedio,
+      costo_total_venta: costoTotal, costo_unitario_aplicado: costoUnitario,
       margen, margen_porcentaje: margenPct,
       forma_cobro_cuenta_id: v.cobros[0]?.cuenta_id || '',
       cobros: v.cobros, cuenta_ingreso_id: cIngreso.id, comprobante_id: compId, estado: 'ACTIVA',
