@@ -903,3 +903,4 @@ export function useAccounting() {
   if (!ctx) throw new Error('useAccounting must be used within AccountingProvider');
   return ctx;
 }
+
