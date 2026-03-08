@@ -1,7 +1,8 @@
 import {
   LayoutDashboard, BookOpen, FileText, ShoppingCart,
   Factory, Package, Wallet, BookMarked, BarChart3,
-  CalendarCheck, Settings, Warehouse, CookingPot, ChevronDown
+  CalendarCheck, Settings, Warehouse, CookingPot, ChevronDown,
+  FileBarChart, Scale
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
