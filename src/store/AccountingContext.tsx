@@ -290,7 +290,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
-  const addMovimientoInsumo = useCallback((m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>) => {
+  const addMovimientoInsumo = useCallback((m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>, cuenta_pago_id?: string) => {
     const now = new Date().toISOString();
     const id = generateId();
     setState(s => {
@@ -298,10 +298,37 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         if (stk.insumo_id !== m.insumo_id) return stk;
         return applyMovimiento(stk, m);
       });
+
+      let newComprobantes = s.comprobantes;
+      let newDetalles = s.detalles;
+
+      // Generate journal entry for ENTRADA with cuenta_pago_id
+      if (m.tipo_movimiento === 'ENTRADA' && cuenta_pago_id && m.costo_total > 0) {
+        const cInvInsumos = s.cuentas.find(c => c.codigo === 'A1.6');
+        if (cInvInsumos) {
+          const insumo = s.insumos.find(i => i.id === m.insumo_id);
+          const compId = generateId();
+          const numero = generateNumero(m.fecha, s.comprobantes.length);
+          const comp: Comprobante = {
+            id: compId, numero, fecha: m.fecha,
+            glosa: `Compra: ${insumo?.nombre || ''} ${m.cantidad} ${m.unidad_movimiento} @ ${m.precio_unitario}`,
+            estado: 'CONTABILIZADO', created_at: now, updated_at: now,
+          };
+          const dets: ComprobanteDetalle[] = [
+            { id: generateId(), comprobante_id: compId, cuenta_id: cInvInsumos.id, descripcion: `Compra insumo ${insumo?.nombre || ''}`, debe: m.costo_total, haber: 0 },
+            { id: generateId(), comprobante_id: compId, cuenta_id: cuenta_pago_id, descripcion: `Pago compra ${insumo?.nombre || ''}`, debe: 0, haber: m.costo_total },
+          ];
+          newComprobantes = [...newComprobantes, comp];
+          newDetalles = [...newDetalles, ...dets];
+        }
+      }
+
       return {
         ...s,
         movimientosInsumos: [...s.movimientosInsumos, { ...m, id, created_at: now, updated_at: now }],
         stockInsumos: newStockInsumos,
+        comprobantes: newComprobantes,
+        detalles: newDetalles,
       };
     });
   }, []);
