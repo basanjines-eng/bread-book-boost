@@ -505,12 +505,38 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         return { ...st, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : 0, updated_at: now };
       });
 
+      // Generate accounting entry for production
+      const cProdTerm = s.cuentas.find(c => c.codigo === 'A1.7');
+      const cInvInsumos = s.cuentas.find(c => c.codigo === 'A1.6');
+      let newComprobantes = s.comprobantes;
+      let newDetalles = s.detalles;
+      let compIdProduccion: string | undefined;
+
+      if (cProdTerm && cInvInsumos && costoConfirmado > 0) {
+        compIdProduccion = generateId();
+        const productoNombre = s.productos.find(p => p.id === prod.producto_id)?.nombre || '';
+        const numero = generateNumero(prod.fecha, s.comprobantes.length);
+        const comp: Comprobante = {
+          id: compIdProduccion, numero, fecha: prod.fecha,
+          glosa: `Producción: ${productoNombre} x${prod.cantidad_producida} (${prod.cantidad_lotes} lotes)`,
+          estado: 'CONTABILIZADO', created_at: now, updated_at: now,
+        };
+        const dets: ComprobanteDetalle[] = [
+          { id: generateId(), comprobante_id: compIdProduccion, cuenta_id: cProdTerm.id, descripcion: `Producción ${productoNombre}`, debe: costoConfirmado, haber: 0 },
+          { id: generateId(), comprobante_id: compIdProduccion, cuenta_id: cInvInsumos.id, descripcion: `Consumo insumos ${productoNombre}`, debe: 0, haber: costoConfirmado },
+        ];
+        newComprobantes = [...newComprobantes, comp];
+        newDetalles = [...newDetalles, ...dets];
+      }
+
       return {
         ...s,
-        producciones: s.producciones.map(p => p.id === id ? { ...p, estado: 'CONFIRMADA' as const, costo_total_produccion: costoConfirmado, costo_unitario: costoUnitarioConfirmado } : p),
+        producciones: s.producciones.map(p => p.id === id ? { ...p, estado: 'CONFIRMADA' as const, costo_total_produccion: costoConfirmado, costo_unitario: costoUnitarioConfirmado, comprobante_id: compIdProduccion } : p),
         stock: newStock,
         stockInsumos: newStockInsumos,
         movimientosInsumos: newMovimientos,
+        comprobantes: newComprobantes,
+        detalles: newDetalles,
       };
     });
     return { ok: true };
