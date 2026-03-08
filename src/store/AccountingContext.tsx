@@ -125,11 +125,33 @@ function migrateInsumos(state: AccountingState): AccountingState {
   };
 }
 
+function migrateProductosCuentaIngreso(state: AccountingState): AccountingState {
+  const nameToCode: Record<string, string> = {
+    'Pan': 'I1.1',
+    'Queque de Plátano': 'I1.2',
+    'Queque de Naranja': 'I1.3',
+  };
+  let changed = false;
+  const productos = state.productos.map(p => {
+    if (p.cuenta_ingreso_id) return p;
+    const code = nameToCode[p.nombre];
+    const cuenta = code ? state.cuentas.find(c => c.codigo === code) : undefined;
+    if (cuenta) {
+      changed = true;
+      return { ...p, cuenta_ingreso_id: cuenta.id };
+    }
+    return p;
+  });
+  if (changed) return { ...state, productos };
+  return state;
+}
+
 function initState(): AccountingState {
   const saved = loadState();
   if (saved && saved.cuentas?.length > 0) {
     let s = migrateVentasCobros(saved);
     s = migrateInsumos(s);
+    s = migrateProductosCuentaIngreso(s);
     // Ensure arrays exist
     if (!s.recetas) s.recetas = [];
     if (!s.recetaInsumos) s.recetaInsumos = [];
