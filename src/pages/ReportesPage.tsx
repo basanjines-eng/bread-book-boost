@@ -58,7 +58,7 @@ export default function ReportesPage() {
           <Card>
             <CardHeader><CardTitle className="font-display">Balance de Comprobación</CardTitle></CardHeader>
             <CardContent>
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto"><table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-2">Código</th>
