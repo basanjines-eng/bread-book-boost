@@ -711,10 +711,35 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         if (st.producto_id !== prod.producto_id) return st;
         return { ...st, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : 0, updated_at: now };
       });
+
+      // Recalculate affected sales
+      const ventasAfectadas = s.ventas.filter(v =>
+        v.producto_id === data.producto_id && v.estado === 'ACTIVA' && !v.deleted_at && v.fecha >= data.fecha
+      );
+      const nuevoCostoUnitario = data.cantidad_producida > 0 ? costoTotal / data.cantidad_producida : 0;
+      const ventasCorregidas = s.ventas.map(v => {
+        if (!ventasAfectadas.find(va => va.id === v.id)) return v;
+        const costoTotalVenta = nuevoCostoUnitario * v.cantidad_vendida;
+        const margen = v.total_venta - costoTotalVenta;
+        const margenPct = v.total_venta > 0 ? (margen / v.total_venta) * 100 : 0;
+        return { ...v, costo_unitario_aplicado: nuevoCostoUnitario, costo_total_venta: costoTotalVenta, margen, margen_porcentaje: margenPct };
+      });
+      const detallesCorregidos = s.detalles.map(d => {
+        const ventaAfectada = ventasCorregidas.find(v => v.comprobante_id === d.comprobante_id && ventasAfectadas.find(va => va.id === v.id));
+        if (!ventaAfectada) return d;
+        const cCostoVentas = s.cuentas.find(c => c.codigo === 'G1.7');
+        const cProdTerm = s.cuentas.find(c => c.codigo === 'A1.7');
+        if (cCostoVentas && d.cuenta_id === cCostoVentas.id) return { ...d, debe: ventaAfectada.costo_total_venta, haber: 0 };
+        if (cProdTerm && d.cuenta_id === cProdTerm.id) return { ...d, debe: 0, haber: ventaAfectada.costo_total_venta };
+        return d;
+      });
+
       return {
         ...s,
         stock: newStock,
         producciones: s.producciones.map(p => p.id === id ? { ...p, ...data, costo_total_produccion: costoTotal, costo_unitario } : p),
+        ventas: ventasCorregidas,
+        detalles: detallesCorregidos,
       };
     });
     return true;
