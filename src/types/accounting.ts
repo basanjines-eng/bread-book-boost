@@ -125,6 +125,7 @@ export interface Produccion {
   receta_id?: string;
   cantidad_lotes: number;
   cantidad_producida: number; // cantidad_real_obtenida
+  cantidad_esperada?: number;
   costo_total_produccion: number;
   costo_unitario: number;
   estado: EstadoProduccion;
