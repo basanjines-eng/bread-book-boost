@@ -59,6 +59,7 @@ interface AccountingContextType extends AccountingState {
   eliminarProduccion: (id: string) => boolean;
   editarProduccion: (id: string, data: { fecha: string; producto_id: string; receta_id?: string; cantidad_lotes: number; cantidad_producida: number }) => boolean;
   canModifyProduccion: (id: string) => { ok: boolean; reason?: string };
+  actualizarCantidadEsperada: (id: string, cantidadEsperada: number) => void;
   // Ventas
   registrarVenta: (v: { fecha: string; producto_id: string; cantidad_vendida: number; total_venta: number; cobros: VentaCobro[] }) => string | null;
   eliminarVenta: (id: string) => boolean;
