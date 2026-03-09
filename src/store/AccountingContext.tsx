@@ -602,6 +602,15 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     return { ok: true };
   }, [state.producciones, state.recetaInsumos, state.stockInsumos]);
 
+  const actualizarCantidadEsperada = useCallback((id: string, cantidadEsperada: number) => {
+    setState(s => ({
+      ...s,
+      producciones: s.producciones.map(p =>
+        p.id === id ? { ...p, cantidad_esperada: cantidadEsperada } : p
+      ),
+    }));
+  }, []);
+
   const canModifyProduccion = useCallback((id: string): { ok: boolean; reason?: string } => {
     const prod = state.producciones.find(p => p.id === id);
     if (!prod) return { ok: false, reason: 'Producción no encontrada.' };
@@ -613,10 +622,8 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
       .sort((a, b) => a.fecha > b.fecha ? 1 : a.fecha < b.fecha ? -1 : 0);
     const lastConfirmed = confirmedForProduct[confirmedForProduct.length - 1];
     if (lastConfirmed && lastConfirmed.id !== id) return { ok: false, reason: 'Existen producciones posteriores.' };
-    const activeVentas = state.ventas.filter(v => v.producto_id === prod.producto_id && v.estado === 'ACTIVA' && !v.deleted_at && v.fecha >= prod.fecha);
-    if (activeVentas.length > 0) return { ok: false, reason: 'Existen ventas posteriores.' };
     return { ok: true };
-  }, [state.producciones, state.ventas, isMesCerrado]);
+  }, [state.producciones, isMesCerrado]);
 
   const eliminarProduccion = useCallback((id: string): boolean => {
     const check = canModifyProduccion(id);
