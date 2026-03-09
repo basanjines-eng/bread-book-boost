@@ -7,15 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { formatMoney, formatDate, today } from "@/lib/accounting";
 import { toast } from "sonner";
-import { Check, Plus, Pencil, Trash2, X } from "lucide-react";
+import { Check, Plus, Pencil, Trash2, X, AlertTriangle } from "lucide-react";
 
 export default function ProduccionPage() {
   const {
-    productos, producciones, recetas, recetaInsumos, getProducto, getRecetaInsumos, calcularCostoReceta,
+    productos, producciones, recetas, recetaInsumos, ventas, getProducto, getRecetaInsumos, calcularCostoReceta,
     addProduccion, confirmarProduccion, editarProduccion, eliminarProduccion, canModifyProduccion,
-    getCuentaByCodigo, addComprobante, contabilizar, stockInsumos,
+    actualizarCantidadEsperada, getCuentaByCodigo, addComprobante, contabilizar, stockInsumos,
   } = useAccounting();
 
   const [fecha, setFecha] = useState(today());
@@ -27,6 +28,13 @@ export default function ProduccionPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
+  // Inline editing for cantidad_esperada in history
+  const [editingEsperadaId, setEditingEsperadaId] = useState<string | null>(null);
+  const [editingEsperadaValue, setEditingEsperadaValue] = useState("");
+
+  // Warning dialog for editing confirmed production with sales
+  const [editWarningId, setEditWarningId] = useState<string | null>(null);
+
   const activeRecetas = recetas.filter(r => r.activo && !r.deleted_at);
   const recetasForProducto = activeRecetas.filter(r => r.producto_id === productoId);
 
@@ -37,7 +45,6 @@ export default function ProduccionPage() {
   const costoTotal = costoReceta * lotesNum;
   const costoUnit = cantRealNum > 0 ? costoTotal / cantRealNum : 0;
 
-  // Calculate merma
   const mermaUnidades = cantEsperadaNum > 0 && cantRealNum < cantEsperadaNum ? cantEsperadaNum - cantRealNum : 0;
   const mermaValor = mermaUnidades > 0 && cantEsperadaNum > 0 ? mermaUnidades * (costoTotal / cantEsperadaNum) : 0;
 
@@ -73,16 +80,11 @@ export default function ProduccionPage() {
     if (result.ok) {
       toast.success("Producción confirmada — stock actualizado e insumos descontados");
 
-      // Check for merma: use stored cantidadEsperada if available
-      // For now we check if the production has merma info stored
-      // We'll register merma comprobante if cantidadReal < cantidadEsperada
-      if (prod && cantEsperadaNum > 0 && prod.cantidad_producida < cantEsperadaNum) {
-        const mermaUds = cantEsperadaNum - prod.cantidad_producida;
-        const mermaCostoUnit = prod.costo_total_produccion > 0 && prod.cantidad_producida > 0
-          ? prod.costo_total_produccion / prod.cantidad_producida : 0;
-        // Actually use costoTotal / cantEsperada for proper distribution
-        const costoRecetaTotal = recetaId ? calcularCostoReceta(recetaId) * prod.cantidad_lotes : 0;
-        const mermaVal = cantEsperadaNum > 0 ? mermaUds * (costoRecetaTotal / cantEsperadaNum) : 0;
+      const esperada = prod?.cantidad_esperada;
+      if (prod && esperada && esperada > 0 && prod.cantidad_producida < esperada) {
+        const mermaUds = esperada - prod.cantidad_producida;
+        const costoRecetaTotal = prod.receta_id ? calcularCostoReceta(prod.receta_id) * prod.cantidad_lotes : 0;
+        const mermaVal = esperada > 0 ? mermaUds * (costoRecetaTotal / esperada) : 0;
 
         if (mermaVal > 0) {
           const cMermas = getCuentaByCodigo('G1.8');
@@ -100,9 +102,12 @@ export default function ProduccionPage() {
           }
         }
       }
-      setCantidadEsperada("");
     }
     else toast.error(result.faltante ? `Stock insuficiente de ${result.faltante}` : "Error al confirmar producción.");
+  };
+
+  const hasVentasPosteriores = (prod: typeof producciones[0]) => {
+    return ventas.some(v => v.producto_id === prod.producto_id && v.estado === 'ACTIVA' && !v.deleted_at && v.fecha >= prod.fecha);
   };
 
   const handleEdit = (id: string) => {
@@ -111,13 +116,32 @@ export default function ProduccionPage() {
     if (prod.estado === 'CONFIRMADA') {
       const check = canModifyProduccion(id);
       if (!check.ok) { toast.error(check.reason!); return; }
+      // Check for associated sales and show warning
+      if (hasVentasPosteriores(prod)) {
+        setEditWarningId(id);
+        return;
+      }
     }
+    startEditing(id);
+  };
+
+  const startEditing = (id: string) => {
+    const prod = producciones.find(p => p.id === id);
+    if (!prod) return;
     setEditingId(id);
     setFecha(prod.fecha);
     setProductoId(prod.producto_id);
     setRecetaId(prod.receta_id || "");
     setCantidadLotes(String(prod.cantidad_lotes));
     setCantidadReal(String(prod.cantidad_producida));
+    setCantidadEsperada(prod.cantidad_esperada ? String(prod.cantidad_esperada) : "");
+  };
+
+  const handleEditWarningContinue = () => {
+    if (editWarningId) {
+      startEditing(editWarningId);
+      setEditWarningId(null);
+    }
   };
 
   const handleDeleteClick = (id: string) => {
@@ -134,14 +158,17 @@ export default function ProduccionPage() {
     setDeleteTarget(null);
   };
 
+  const handleSaveEsperada = (id: string) => {
+    const val = parseFloat(editingEsperadaValue);
+    if (isNaN(val) || val <= 0) { toast.error("Ingrese un valor válido"); return; }
+    actualizarCantidadEsperada(id, val);
+    setEditingEsperadaId(null);
+    setEditingEsperadaValue("");
+    toast.success("Cantidad esperada actualizada");
+  };
+
   const deleteProduccion = deleteTarget ? producciones.find(p => p.id === deleteTarget) : null;
   const activeProducciones = producciones.filter(p => !p.deleted_at && p.estado !== 'ANULADA');
-
-  // Compute merma info from comprobantes
-  const mermasPorProduccion = useMemo(() => {
-    // Not perfectly trackable without extra fields, but we can show from glosa
-    return {};
-  }, []);
 
   return (
     <div className="space-y-6">
@@ -222,6 +249,7 @@ export default function ProduccionPage() {
                     <th className="text-left py-2">Receta</th>
                     <th className="text-right py-2">Lotes</th>
                     <th className="text-right py-2">Cant. Real</th>
+                    <th className="text-right py-2">Cant. Esperada</th>
                     <th className="text-right py-2">Costo Total</th>
                     <th className="text-right py-2">C. Unit.</th>
                     <th className="text-center py-2">Estado</th>
@@ -232,13 +260,60 @@ export default function ProduccionPage() {
                   {[...activeProducciones].reverse().map(p => {
                     const canMod = p.estado !== 'BORRADOR' ? canModifyProduccion(p.id) : { ok: true };
                     const receta = recetas.find(r => r.id === p.receta_id);
+                    const hasMerma = p.cantidad_esperada && p.cantidad_producida < p.cantidad_esperada;
+                    const mermaUds = hasMerma ? p.cantidad_esperada! - p.cantidad_producida : 0;
+                    const mermaVal = mermaUds > 0 ? mermaUds * p.costo_unitario : 0;
+
                     return (
                       <tr key={p.id} className="border-b border-border/50">
                         <td className="py-2">{formatDate(p.fecha)}</td>
                         <td className="py-2">{getProducto(p.producto_id)?.nombre}</td>
                         <td className="py-2 text-xs text-muted-foreground">{receta?.nombre_receta || '-'}</td>
                         <td className="text-right py-2">{p.cantidad_lotes}</td>
-                        <td className="text-right py-2">{p.cantidad_producida}</td>
+                        <td className="text-right py-2">
+                          {p.cantidad_producida}
+                          {hasMerma && (
+                            <div className="text-xs text-destructive font-medium">
+                              Merma: {mermaUds} uds ({formatMoney(mermaVal)})
+                            </div>
+                          )}
+                        </td>
+                        <td className="text-right py-2">
+                          {editingEsperadaId === p.id ? (
+                            <div className="flex items-center gap-1 justify-end">
+                              <Input
+                                type="number"
+                                value={editingEsperadaValue}
+                                onChange={e => setEditingEsperadaValue(e.target.value)}
+                                className="w-20 h-7 text-xs"
+                                min="0"
+                                autoFocus
+                                onKeyDown={e => { if (e.key === 'Enter') handleSaveEsperada(p.id); if (e.key === 'Escape') setEditingEsperadaId(null); }}
+                              />
+                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleSaveEsperada(p.id)}>
+                                <Check className="h-3 w-3" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditingEsperadaId(null)}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 justify-end">
+                              {p.cantidad_esperada ? (
+                                <>
+                                  <span>{p.cantidad_esperada}</span>
+                                  <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => { setEditingEsperadaId(p.id); setEditingEsperadaValue(String(p.cantidad_esperada)); }}>
+                                    <Pencil className="h-3 w-3 text-muted-foreground" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button size="sm" variant="ghost" className="h-6 text-xs text-muted-foreground" onClick={() => { setEditingEsperadaId(p.id); setEditingEsperadaValue(""); }}>
+                                  <Plus className="h-3 w-3 mr-1" />—
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                        </td>
                         <td className="text-right py-2">{formatMoney(p.costo_total_produccion)}</td>
                         <td className="text-right py-2">{formatMoney(p.costo_unitario)}</td>
                         <td className="text-center py-2">
@@ -274,6 +349,7 @@ export default function ProduccionPage() {
         </Card>
       </div>
 
+      {/* Delete confirmation dialog */}
       <Dialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
         <DialogContent>
           <DialogHeader>
@@ -297,6 +373,25 @@ export default function ProduccionPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Warning dialog for editing confirmed production with associated sales */}
+      <AlertDialog open={!!editWarningId} onOpenChange={open => !open && setEditWarningId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Advertencia: Ventas asociadas
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta producción tiene ventas asociadas. Al editar, los costos de esas ventas se recalcularán automáticamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setEditWarningId(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleEditWarningContinue}>Continuar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
