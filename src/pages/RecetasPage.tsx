@@ -66,7 +66,7 @@ export default function RecetasPage() {
 
     if (editingId) {
       updateReceta(editingId, { nombre_receta: formNombre, producto_id: formProductoId }, ingData);
-      toast.success("Receta actualizada");
+      toast.success("Receta actualizada — costos de producción y ventas recalculados automáticamente");
     } else {
       addReceta({ nombre_receta: formNombre, producto_id: formProductoId, activo: true }, ingData);
       toast.success("Receta creada");

@@ -59,7 +59,6 @@ interface AccountingContextType extends AccountingState {
   eliminarProduccion: (id: string) => boolean;
   editarProduccion: (id: string, data: { fecha: string; producto_id: string; receta_id?: string; cantidad_lotes: number; cantidad_producida: number }) => boolean;
   canModifyProduccion: (id: string) => { ok: boolean; reason?: string };
-  actualizarCantidadEsperada: (id: string, cantidadEsperada: number) => void;
   // Ventas
   registrarVenta: (v: { fecha: string; producto_id: string; cantidad_vendida: number; total_venta: number; cobros: VentaCobro[] }) => string | null;
   eliminarVenta: (id: string) => boolean;
@@ -465,11 +464,58 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
   const updateReceta = useCallback((id: string, r: Partial<Omit<Receta, 'id'>>, ingredientes: Omit<RecetaInsumo, 'id' | 'receta_id' | 'created_at' | 'updated_at'>[]) => {
     const now = new Date().toISOString();
     const newIngredientes = ingredientes.map(i => ({ ...i, id: generateId(), receta_id: id, created_at: now, updated_at: now }));
-    setState(s => ({
-      ...s,
-      recetas: s.recetas.map(x => x.id === id ? { ...x, ...r, updated_at: now } : x),
-      recetaInsumos: [...s.recetaInsumos.filter(ri => ri.receta_id !== id), ...newIngredientes],
-    }));
+
+    setState(s => {
+      const recetasActualizadas = s.recetas.map(x => x.id === id ? { ...x, ...r, updated_at: now } : x);
+      const recetaInsumosActualizados = [...s.recetaInsumos.filter(ri => ri.receta_id !== id), ...newIngredientes];
+
+      // Recalcular costo de receta con los nuevos ingredientes y CPP actual
+      const nuevoCostoRecetaPorLote = newIngredientes.reduce((total, ri) => {
+        const stk = s.stockInsumos.find(st => st.insumo_id === ri.insumo_id);
+        return total + (ri.cantidad_usada * (stk?.costo_promedio || 0));
+      }, 0);
+
+      // Recalcular todas las producciones que usaron esta receta
+      const produccionesActualizadas = s.producciones.map(p => {
+        if (p.receta_id !== id || p.estado === 'ANULADA' || p.deleted_at) return p;
+        const nuevoCostoTotal = nuevoCostoRecetaPorLote * p.cantidad_lotes;
+        const nuevoCostoUnitario = p.cantidad_producida > 0 ? nuevoCostoTotal / p.cantidad_producida : 0;
+        return { ...p, costo_total_produccion: nuevoCostoTotal, costo_unitario: nuevoCostoUnitario, updated_at: now };
+      });
+
+      // Recalcular ventas usando el nuevo costo_unitario de su producción más cercana
+      const ventasActualizadas = s.ventas.map(v => {
+        if (v.estado !== 'ACTIVA' || v.deleted_at) return v;
+        const produccion = produccionesActualizadas
+          .filter(p => p.producto_id === v.producto_id && p.estado === 'CONFIRMADA' && !p.deleted_at && p.fecha <= v.fecha)
+          .sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
+        if (!produccion) return v;
+        const costoTotalVenta = produccion.costo_unitario * v.cantidad_vendida;
+        const margen = v.total_venta - costoTotalVenta;
+        const margenPct = v.total_venta > 0 ? (margen / v.total_venta) * 100 : 0;
+        return { ...v, costo_unitario_aplicado: produccion.costo_unitario, costo_total_venta: costoTotalVenta, margen, margen_porcentaje: margenPct };
+      });
+
+      // Corregir comprobantes contables de ventas afectadas (G1.7 y A1.7)
+      const detallesActualizados = s.detalles.map(d => {
+        const venta = ventasActualizadas.find(v => v.comprobante_id === d.comprobante_id);
+        if (!venta) return d;
+        const cCostoVentas = s.cuentas.find(c => c.codigo === 'G1.7');
+        const cProdTerm = s.cuentas.find(c => c.codigo === 'A1.7');
+        if (cCostoVentas && d.cuenta_id === cCostoVentas.id) return { ...d, debe: venta.costo_total_venta, haber: 0 };
+        if (cProdTerm && d.cuenta_id === cProdTerm.id) return { ...d, debe: 0, haber: venta.costo_total_venta };
+        return d;
+      });
+
+      return {
+        ...s,
+        recetas: recetasActualizadas,
+        recetaInsumos: recetaInsumosActualizados,
+        producciones: produccionesActualizadas,
+        ventas: ventasActualizadas,
+        detalles: detallesActualizados,
+      };
+    });
   }, []);
 
   const deleteReceta = useCallback((id: string) => {
@@ -602,15 +648,6 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     return { ok: true };
   }, [state.producciones, state.recetaInsumos, state.stockInsumos]);
 
-  const actualizarCantidadEsperada = useCallback((id: string, cantidadEsperada: number) => {
-    setState(s => ({
-      ...s,
-      producciones: s.producciones.map(p =>
-        p.id === id ? { ...p, cantidad_esperada: cantidadEsperada } : p
-      ),
-    }));
-  }, []);
-
   const canModifyProduccion = useCallback((id: string): { ok: boolean; reason?: string } => {
     const prod = state.producciones.find(p => p.id === id);
     if (!prod) return { ok: false, reason: 'Producción no encontrada.' };
@@ -622,8 +659,10 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
       .sort((a, b) => a.fecha > b.fecha ? 1 : a.fecha < b.fecha ? -1 : 0);
     const lastConfirmed = confirmedForProduct[confirmedForProduct.length - 1];
     if (lastConfirmed && lastConfirmed.id !== id) return { ok: false, reason: 'Existen producciones posteriores.' };
+    const activeVentas = state.ventas.filter(v => v.producto_id === prod.producto_id && v.estado === 'ACTIVA' && !v.deleted_at && v.fecha >= prod.fecha);
+    if (activeVentas.length > 0) return { ok: false, reason: 'Existen ventas posteriores.' };
     return { ok: true };
-  }, [state.producciones, isMesCerrado]);
+  }, [state.producciones, state.ventas, isMesCerrado]);
 
   const eliminarProduccion = useCallback((id: string): boolean => {
     const check = canModifyProduccion(id);
@@ -711,35 +750,10 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         if (st.producto_id !== prod.producto_id) return st;
         return { ...st, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : 0, updated_at: now };
       });
-
-      // Recalculate affected sales
-      const ventasAfectadas = s.ventas.filter(v =>
-        v.producto_id === data.producto_id && v.estado === 'ACTIVA' && !v.deleted_at && v.fecha >= data.fecha
-      );
-      const nuevoCostoUnitario = data.cantidad_producida > 0 ? costoTotal / data.cantidad_producida : 0;
-      const ventasCorregidas = s.ventas.map(v => {
-        if (!ventasAfectadas.find(va => va.id === v.id)) return v;
-        const costoTotalVenta = nuevoCostoUnitario * v.cantidad_vendida;
-        const margen = v.total_venta - costoTotalVenta;
-        const margenPct = v.total_venta > 0 ? (margen / v.total_venta) * 100 : 0;
-        return { ...v, costo_unitario_aplicado: nuevoCostoUnitario, costo_total_venta: costoTotalVenta, margen, margen_porcentaje: margenPct };
-      });
-      const detallesCorregidos = s.detalles.map(d => {
-        const ventaAfectada = ventasCorregidas.find(v => v.comprobante_id === d.comprobante_id && ventasAfectadas.find(va => va.id === v.id));
-        if (!ventaAfectada) return d;
-        const cCostoVentas = s.cuentas.find(c => c.codigo === 'G1.7');
-        const cProdTerm = s.cuentas.find(c => c.codigo === 'A1.7');
-        if (cCostoVentas && d.cuenta_id === cCostoVentas.id) return { ...d, debe: ventaAfectada.costo_total_venta, haber: 0 };
-        if (cProdTerm && d.cuenta_id === cProdTerm.id) return { ...d, debe: 0, haber: ventaAfectada.costo_total_venta };
-        return d;
-      });
-
       return {
         ...s,
         stock: newStock,
         producciones: s.producciones.map(p => p.id === id ? { ...p, ...data, costo_total_produccion: costoTotal, costo_unitario } : p),
-        ventas: ventasCorregidas,
-        detalles: detallesCorregidos,
       };
     });
     return true;
@@ -1003,7 +1017,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     addInsumo, updateInsumo, deleteInsumo,
     addMovimientoInsumo, editMovimientoInsumo, deleteMovimientoInsumo,
     addReceta, updateReceta, deleteReceta, getRecetaInsumos, calcularCostoReceta,
-    addProduccion, confirmarProduccion, eliminarProduccion, editarProduccion, canModifyProduccion, actualizarCantidadEsperada,
+    addProduccion, confirmarProduccion, eliminarProduccion, editarProduccion, canModifyProduccion,
     registrarVenta, eliminarVenta, editarVenta, recalcularCostosVentas, updateStockMinimo,
     cerrarMes, reabrirMes, isMesCerrado,
     getCuenta, getCuentaByCodigo, getProducto, getInsumo, getStockForProducto, getStockForInsumo,
