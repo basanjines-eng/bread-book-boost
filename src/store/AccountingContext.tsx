@@ -90,7 +90,7 @@ function loadState(): AccountingState | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
-  } catch {}
+  } catch { /* ignore parse errors */ }
   return null;
 }
 
@@ -160,7 +160,7 @@ function migrateNewAccounts(state: AccountingState): AccountingState {
     { codigo: 'A2.3', nombre: 'Equipos de Cómputo', tipo: 'ACTIVO' },
     { codigo: 'A2.9', nombre: 'Depreciación Acumulada', tipo: 'ACTIVO', naturaleza: 'ACREEDORA' },
   ];
-  let cuentas = [...state.cuentas];
+  const cuentas = [...state.cuentas];
   let changed = false;
   for (const acc of newAccounts) {
     if (!cuentas.find(c => c.codigo === acc.codigo)) {
@@ -646,7 +646,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
       };
     });
     return { ok: true };
-  }, [state.producciones, state.recetaInsumos, state.stockInsumos]);
+  }, [state.producciones, state.recetaInsumos, state.stockInsumos, state.insumos, calcularCostoReceta]);
 
   const canModifyProduccion = useCallback((id: string): { ok: boolean; reason?: string } => {
     const prod = state.producciones.find(p => p.id === id);
@@ -861,9 +861,9 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     const stkOrig = state.stock.find(s => s.producto_id === ventaOriginal.producto_id);
     if (!stkOrig) return false;
 
-    let revertedCant = stkOrig.cantidad_actual + ventaOriginal.cantidad_vendida;
-    let revertedVal = stkOrig.valor_actual + ventaOriginal.costo_total_venta;
-    let revertedCPP = revertedCant > 0 ? revertedVal / revertedCant : 0;
+    const revertedCant = stkOrig.cantidad_actual + ventaOriginal.cantidad_vendida;
+    const revertedVal = stkOrig.valor_actual + ventaOriginal.costo_total_venta;
+    const revertedCPP = revertedCant > 0 ? revertedVal / revertedCant : 0;
 
     if (v.producto_id !== ventaOriginal.producto_id) {
       const stkNew = state.stock.find(s => s.producto_id === v.producto_id);
@@ -875,7 +875,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     const producto = state.productos.find(p => p.id === v.producto_id);
     if (!producto) return false;
 
-    let newCPP = v.producto_id === ventaOriginal.producto_id ? revertedCPP : state.stock.find(s => s.producto_id === v.producto_id)!.costo_promedio;
+    const newCPP = v.producto_id === ventaOriginal.producto_id ? revertedCPP : state.stock.find(s => s.producto_id === v.producto_id)!.costo_promedio;
     const costoTotal = newCPP * v.cantidad_vendida;
     const margen = v.total_venta - costoTotal;
     const margenPct = v.total_venta > 0 ? (margen / v.total_venta) * 100 : 0;
