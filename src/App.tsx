@@ -24,6 +24,7 @@ import ImpresionMensualPage from "./pages/ImpresionMensualPage";
 import PlanillaPage from "./pages/PlanillaPage";
 import ActivosFijosPage from "./pages/ActivosFijosPage";
 import NotasContablesPage from "./pages/NotasContablesPage";
+import GastosHogarPage from "./pages/GastosHogarPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -56,6 +57,7 @@ const App = () => (
               <Route path="/planilla" element={<PlanillaPage />} />
               <Route path="/activos-fijos" element={<ActivosFijosPage />} />
               <Route path="/notas-contables" element={<NotasContablesPage />} />
+              <Route path="/gastos-hogar" element={<GastosHogarPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Layout>
