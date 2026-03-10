@@ -66,6 +66,7 @@ interface AccountingContextType extends AccountingState {
   recalcularCostosVentas: () => void;
   // Stock
   updateStockMinimo: (producto_id: string, minimo: number) => void;
+  registrarMerma: (producto_id: string, cantidad: number, fecha: string, motivo: string) => boolean;
   // Cierres
   cerrarMes: (anio: number, mes: number, nota?: string) => void;
   reabrirMes: (anio: number, mes: number) => void;
@@ -970,6 +971,59 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     setState(s => ({ ...s, stock: s.stock.map(st => st.producto_id === producto_id ? { ...st, stock_minimo: minimo } : st) }));
   }, []);
 
+  const registrarMerma = useCallback((producto_id: string, cantidad: number, fecha: string, motivo: string): boolean => {
+    const stk = state.stock.find(s => s.producto_id === producto_id);
+    if (!stk || stk.cantidad_actual <= 0) return false;
+    const cantMerma = cantidad > 0 ? Math.min(cantidad, stk.cantidad_actual) : stk.cantidad_actual;
+    if (cantMerma <= 0) return false;
+
+    const producto = state.productos.find(p => p.id === producto_id);
+    if (!producto) return false;
+
+    // G1.8 = Mermas de Producción (GASTO), A1.7 = Productos Terminados (ACTIVO)
+    const cMerma = state.cuentas.find(c => c.codigo === 'G1.8');
+    const cProdTerm = state.cuentas.find(c => c.codigo === 'A1.7');
+    if (!cMerma || !cProdTerm) return false;
+
+    const costoMerma = cantMerma * stk.costo_promedio;
+    const now = new Date().toISOString();
+    const compId = generateId();
+    const numero = generateNumero(fecha, state.comprobantes.length);
+
+    const newComp: Comprobante = {
+      id: compId, numero, fecha,
+      glosa: `Merma: ${producto.nombre} x${cantMerma} — ${motivo || 'Sin motivo'}`,
+      estado: 'CONTABILIZADO', created_at: now, updated_at: now,
+    };
+
+    const newDets: ComprobanteDetalle[] = [
+      {
+        id: generateId(), comprobante_id: compId, cuenta_id: cMerma.id,
+        descripcion: `Merma ${producto.nombre} x${cantMerma} u.`, debe: costoMerma, haber: 0,
+      },
+      {
+        id: generateId(), comprobante_id: compId, cuenta_id: cProdTerm.id,
+        descripcion: `Baja inventario por merma ${producto.nombre}`, debe: 0, haber: costoMerma,
+      },
+    ];
+
+    setState(s => {
+      const newStock = s.stock.map(st => {
+        if (st.producto_id !== producto_id) return st;
+        const nc = st.cantidad_actual - cantMerma;
+        const nv = Math.max(0, st.valor_actual - costoMerma);
+        return { ...st, cantidad_actual: nc, valor_actual: nv, costo_promedio: nc > 0 ? nv / nc : st.costo_promedio, updated_at: now };
+      });
+      return {
+        ...s,
+        stock: newStock,
+        comprobantes: [...s.comprobantes, newComp],
+        detalles: [...s.detalles, ...newDets],
+      };
+    });
+    return true;
+  }, [state]);
+
   const cerrarMes = useCallback((anio: number, mes: number, nota?: string) => {
     setState(s => {
       const existing = s.cierres.find(c => c.anio === anio && c.mes === mes);
@@ -1018,7 +1072,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     addMovimientoInsumo, editMovimientoInsumo, deleteMovimientoInsumo,
     addReceta, updateReceta, deleteReceta, getRecetaInsumos, calcularCostoReceta,
     addProduccion, confirmarProduccion, eliminarProduccion, editarProduccion, canModifyProduccion,
-    registrarVenta, eliminarVenta, editarVenta, recalcularCostosVentas, updateStockMinimo,
+    registrarVenta, eliminarVenta, editarVenta, recalcularCostosVentas, updateStockMinimo, registrarMerma,
     cerrarMes, reabrirMes, isMesCerrado,
     getCuenta, getCuentaByCodigo, getProducto, getInsumo, getStockForProducto, getStockForInsumo,
     getDetallesForComprobante, getComprobantesContabilizados, getDetallesContabilizados,
