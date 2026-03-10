@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, BookOpen, FileText, ShoppingCart,
   Factory, Package, Wallet, BookMarked, BarChart3,
-  CalendarCheck, Settings, Warehouse, CookingPot
+  CalendarCheck, Settings, Warehouse, CookingPot, Home
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -21,6 +21,7 @@ const items = [
   { title: "Producto Terminado", url: "/stock", icon: Package },
   { title: "Ventas", url: "/ventas", icon: ShoppingCart },
   { title: "Flujo de Caja", url: "/flujo-caja", icon: Wallet },
+  { title: "Gastos del Hogar", url: "/gastos-hogar", icon: Home },
   { title: "Libro Mayor", url: "/libro-mayor", icon: BookMarked },
   { title: "Reportes", url: "/reportes", icon: BarChart3 },
   { title: "Cierre Mensual", url: "/cierre-mensual", icon: CalendarCheck },
