@@ -102,6 +102,7 @@ export interface Receta {
   producto_id: string;
   nombre_receta: string;
   activo: boolean;
+  fecha_especifica?: string | null; // Si tiene fecha, es una receta de un solo día
   deleted_at?: string | null;
   created_at: string;
   updated_at: string;
