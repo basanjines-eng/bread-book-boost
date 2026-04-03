@@ -14,7 +14,7 @@ import {
   Plus, Trash2, Search, AlertTriangle, TrendingDown,
   ArrowUpCircle, ArrowDownCircle, Settings2, ChevronDown, ChevronUp, Edit2, Check, X
 } from "lucide-react";
-import type { Insumo, CategoriaInsumo, TipoMovimientoInsumo } from "@/types/accounting";
+import type { Insumo, CategoriaInsumo, TipoMovimientoInsumo, MovimientoInsumo } from "@/types/accounting";
 
 const CATEGORIAS: CategoriaInsumo[] = ['Ingredientes', 'Combustible', 'Empaque', 'Otros ingredientes'];
 
