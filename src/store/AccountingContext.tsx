@@ -437,7 +437,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     }));
   }, []);
 
-  const updateReceta = useCallback((id: string, data: { nombre_receta: string; fecha_especifica?: string }, ingredientes: { insumo_id: string; cantidad_usada: number; unidad_medida: string }[]) => {
+  const updateReceta = useCallback((id: string, data: { nombre_receta: string; producto_id?: string; fecha_especifica?: string }, ingredientes: { insumo_id: string; cantidad_usada: number; unidad_medida: string }[]) => {
     const now = new Date().toISOString();
     setState(s => ({
       ...s,
