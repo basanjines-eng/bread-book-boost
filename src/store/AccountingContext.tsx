@@ -286,7 +286,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   // BUG FIX #1: generateNumero inside setState for movimiento insumo
-  const addMovimientoInsumo = useCallback((m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at' | 'cantidad_equivalente_base' | 'costo_total'>): string => {
+  const addMovimientoInsumo = useCallback((m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>, cuentaPagoId?: string): string => {
     const movId = generateId();
     const now = new Date().toISOString();
     setState(s => {
