@@ -115,8 +115,8 @@ interface AccountingContextType {
   deleteMovimientoInsumo: (id: string) => boolean;
 
   // Recetas
-  addReceta: (r: { producto_id: string; nombre_receta: string; fecha_especifica?: string }, ingredientes: { insumo_id: string; cantidad_usada: number; unidad_medida: string }[]) => void;
-  updateReceta: (id: string, data: { nombre_receta: string; fecha_especifica?: string }, ingredientes: { insumo_id: string; cantidad_usada: number; unidad_medida: string }[]) => void;
+  addReceta: (r: { producto_id: string; nombre_receta: string; activo?: boolean; fecha_especifica?: string | null }, ingredientes: { insumo_id: string; cantidad_usada: number; unidad_medida: string }[]) => void;
+  updateReceta: (id: string, data: { nombre_receta: string; producto_id?: string; fecha_especifica?: string }, ingredientes: { insumo_id: string; cantidad_usada: number; unidad_medida: string }[]) => void;
   deleteReceta: (id: string) => void;
   getRecetaInsumos: (recetaId: string) => RecetaInsumo[];
   calcularCostoReceta: (recetaId: string) => number;
