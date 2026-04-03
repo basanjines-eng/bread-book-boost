@@ -424,7 +424,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     return total;
   }, [state.recetaInsumos, state.stockInsumos, state.insumos]);
 
-  const addReceta = useCallback((r: { producto_id: string; nombre_receta: string; fecha_especifica?: string }, ingredientes: { insumo_id: string; cantidad_usada: number; unidad_medida: string }[]) => {
+  const addReceta = useCallback((r: { producto_id: string; nombre_receta: string; activo?: boolean; fecha_especifica?: string | null }, ingredientes: { insumo_id: string; cantidad_usada: number; unidad_medida: string }[]) => {
     const now = new Date().toISOString();
     const recetaId = generateId();
     setState(s => ({
