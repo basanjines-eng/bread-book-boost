@@ -331,8 +331,8 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         const compId = generateId();
         const numero = generateNumero(m.fecha, s.comprobantes.length);
         const cInvInsumos = s.cuentas.find(c => c.codigo === 'A1.6');
-        // Try to find the payment account from proveedor or use Caja
-        const cPago = s.cuentas.find(c => c.es_caja_banco && c.activa) || s.cuentas.find(c => c.codigo === 'A1.1');
+        // Use provided cuentaPagoId or fall back to first caja account
+        const cPago = cuentaPagoId ? s.cuentas.find(c => c.id === cuentaPagoId) : (s.cuentas.find(c => c.es_caja_banco && c.activa) || s.cuentas.find(c => c.codigo === 'A1.1'));
         if (cInvInsumos && cPago) {
           const comp: Comprobante = {
             id: compId, numero, fecha: m.fecha,
