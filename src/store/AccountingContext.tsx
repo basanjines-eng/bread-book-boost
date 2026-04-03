@@ -102,7 +102,7 @@ interface AccountingContextType {
   recalcularCostosVentas: () => void;
 
   // Stock / Merma
-  registrarMerma: (productoId: string, fecha: string, cantidad: number, motivo: string) => boolean;
+  registrarMerma: (productoId: string, cantidad: number, fecha: string, motivo: string) => boolean;
 
   // Insumos
   getInsumo: (id: string) => Insumo | undefined;
