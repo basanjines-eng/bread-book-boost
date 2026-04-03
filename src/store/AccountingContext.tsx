@@ -315,10 +315,16 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         } else if (m.tipo_movimiento === 'SALIDA') {
           newCant = Math.max(0, newCant - cantidadEquivalenteBase);
           newVal = Math.max(0, newVal - cantidadEquivalenteBase * si.costo_promedio);
-        } else {
-          // AJUSTE
-          newCant = cantidadEquivalenteBase;
-          newVal = cantidadEquivalenteBase * si.costo_promedio;
+        } else if (m.tipo_movimiento === 'AJUSTE') {
+          if (m.motivo === '__INVENTARIO_INICIAL__') {
+            // Inventario inicial: setea cantidad Y costo promedio sin asiento contable
+            newCant = cantidadEquivalenteBase;
+            newVal = costoTotal; // precio_unitario * cantidad = valor total
+          } else {
+            // Ajuste normal: modifica cantidad, mantiene costo promedio existente
+            newCant = Math.max(0, newCant + cantidadEquivalenteBase);
+            newVal = newCant > 0 ? newCant * si.costo_promedio : 0;
+          }
         }
         const newCPP = newCant > 0 ? newVal / newCant : 0;
         return { ...si, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCPP, updated_at: now };

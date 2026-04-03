@@ -124,6 +124,7 @@ export default function InsumosPage() {
   const [movObs, setMovObs] = useState("");
   const [movMotivo, setMovMotivo] = useState("");
   const [movAjusteTipo, setMovAjusteTipo] = useState<"sube" | "baja">("sube");
+  const [movEsInventarioInicial, setMovEsInventarioInicial] = useState(false);
   const [movCuentaPagoId, setMovCuentaPagoId] = useState("");
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -213,6 +214,7 @@ export default function InsumosPage() {
     setMovProveedor(""); setMovReferencia(""); setMovObs(""); setMovMotivo("");
     setMovFecha(today()); setMovFechaCompra(today()); setMovCuentaPagoId("");
     setShowMovForm(false);
+    setMovEsInventarioInicial(false);
   };
   const handleSaveMovimiento = () => {
     if (!movInsumoId || !movCantidad) { toast.error("Insumo y cantidad son obligatorios"); return; }
@@ -225,13 +227,23 @@ export default function InsumosPage() {
     const cantBase = isBaseUnit ? cantNum : cantNum * ins.equivalencia_compra;
     const precioUnit = parseFloat(movPrecio) || 0;
     const costoTotal = movTipo === 'ENTRADA' ? precioUnit * cantNum : 0;
-    const cantEquiv = movTipo === 'AJUSTE' && movAjusteTipo === 'baja' ? -cantBase : cantBase;
+    let cantEquiv: number;
+    if (movTipo === 'AJUSTE' && movEsInventarioInicial) {
+      cantEquiv = cantBase; // inventario inicial: cantidad absoluta
+    } else if (movTipo === 'AJUSTE' && movAjusteTipo === 'baja') {
+      cantEquiv = -cantBase; // ajuste baja: negativo para restar
+    } else {
+      cantEquiv = cantBase;
+    }
+    const motivoFinal = movTipo === 'AJUSTE' && movEsInventarioInicial
+      ? '__INVENTARIO_INICIAL__'
+      : movMotivo;
     addMovimientoInsumo({
       fecha: movFecha, fecha_compra: movTipo === 'ENTRADA' ? movFechaCompra : undefined,
       insumo_id: movInsumoId, tipo_movimiento: movTipo,
       cantidad: cantNum, unidad_movimiento: movUnidad || ins.unidad_base,
       cantidad_equivalente_base: cantEquiv, precio_unitario: precioUnit,
-      costo_total: costoTotal, motivo: movMotivo, proveedor: movProveedor,
+      costo_total: costoTotal, motivo: motivoFinal, proveedor: movProveedor,
       referencia: movReferencia, observacion: movObs,
     }, movTipo === 'ENTRADA' ? movCuentaPagoId : undefined);
     toast.success(`Movimiento registrado: ${movTipo}`);
@@ -775,15 +787,43 @@ export default function InsumosPage() {
               </div>
             </div>
             {movTipo === 'AJUSTE' && (
-              <div>
-                <Label>Tipo de Ajuste</Label>
-                <Select value={movAjusteTipo} onValueChange={v => setMovAjusteTipo(v as 'sube' | 'baja')}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sube">Sube (aumentar stock)</SelectItem>
-                    <SelectItem value="baja">Baja (disminuir stock)</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3 rounded-lg border">
+                  <input
+                    type="checkbox"
+                    id="chk-inv-inicial"
+                    checked={movEsInventarioInicial}
+                    onChange={e => setMovEsInventarioInicial(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <div>
+                    <label htmlFor="chk-inv-inicial" className="font-medium text-sm cursor-pointer">
+                      Inventario Inicial
+                    </label>
+                    <p className="text-xs text-muted-foreground">
+                      Establece el stock de arranque. Requiere precio unitario. No genera asiento contable.
+                    </p>
+                  </div>
+                </div>
+                {!movEsInventarioInicial && (
+                  <div>
+                    <Label>Tipo de Ajuste</Label>
+                    <Select value={movAjusteTipo} onValueChange={v => setMovAjusteTipo(v as 'sube' | 'baja')}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sube">Sube (aumentar stock)</SelectItem>
+                        <SelectItem value="baja">Baja (disminuir stock)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {movEsInventarioInicial && (
+                  <div>
+                    <Label>Precio Unitario en {movInsumoId ? getInsumo(movInsumoId)?.unidad_base : 'unidad base'} (Bs)</Label>
+                    <Input type="number" value={movPrecio} onChange={e => setMovPrecio(e.target.value)} min="0" />
+                    <p className="text-xs text-muted-foreground mt-1">Costo promedio con el que entrará al inventario</p>
+                  </div>
+                )}
               </div>
             )}
             {movTipo === 'ENTRADA' && (
