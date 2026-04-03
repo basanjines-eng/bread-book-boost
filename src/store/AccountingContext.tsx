@@ -1082,7 +1082,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
 
   // ─── MERMA ───────────────────────────────────────────
   // BUG FIX #1: generateNumero inside setState
-  const registrarMerma = useCallback((productoId: string, fecha: string, cantidad: number, motivo: string): boolean => {
+  const registrarMerma = useCallback((productoId: string, cantidad: number, fecha: string, motivo: string): boolean => {
     let success = false;
     setState(s => {
       const stk = s.stock.find(st => st.producto_id === productoId);
