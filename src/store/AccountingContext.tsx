@@ -292,6 +292,39 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     });
   }, []);
 
+  const eliminarProducto = useCallback((id: string): { ok: boolean; reason?: string } => {
+    let result: { ok: boolean; reason?: string } = { ok: false };
+    setState(s => {
+      const prod = s.productos.find(p => p.id === id);
+      if (!prod) { result = { ok: false, reason: 'Producto no encontrado.' }; return s; }
+      // Bloquear si tiene producciones o ventas activas
+      const tieneProd = s.producciones.some(p => p.producto_id === id && !p.deleted_at);
+      const tieneVentas = s.ventas.some(v => v.producto_id === id && !v.deleted_at);
+      if (tieneProd || tieneVentas) {
+        result = { ok: false, reason: 'No se puede eliminar: el producto tiene producciones o ventas registradas.' };
+        return s;
+      }
+      // Bloquear si la cuenta de ingreso tiene movimientos
+      if (prod.cuenta_ingreso_id) {
+        const compsActivos = new Set(s.comprobantes.filter(c => !c.deleted_at).map(c => c.id));
+        const cuentaTieneMov = s.detalles.some(d => d.cuenta_id === prod.cuenta_ingreso_id && compsActivos.has(d.comprobante_id));
+        if (cuentaTieneMov) {
+          result = { ok: false, reason: 'No se puede eliminar: la cuenta de ingreso tiene movimientos contables.' };
+          return s;
+        }
+      }
+      result = { ok: true };
+      return {
+        ...s,
+        productos: s.productos.filter(p => p.id !== id),
+        stock: s.stock.filter(st => st.producto_id !== id),
+        // Eliminar también la cuenta de ingreso si no tiene movimientos
+        cuentas: s.cuentas.filter(c => c.id !== prod.cuenta_ingreso_id),
+      };
+    });
+    return result;
+  }, []);
+
   // ─── INSUMOS ─────────────────────────────────────────
   const getInsumo = useCallback((id: string) => state.insumos.find(i => i.id === id), [state.insumos]);
   const getStockForInsumo = useCallback((iid: string) => state.stockInsumos.find(s => s.insumo_id === iid), [state.stockInsumos]);
