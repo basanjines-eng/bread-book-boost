@@ -162,6 +162,35 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     setState(s => ({ ...s, cuentas: s.cuentas.map(x => x.id === c.id ? c : x) }));
   }, []);
 
+  const cuentaTieneMovimientos = useCallback((id: string): boolean => {
+    // Revisa si la cuenta aparece en cualquier detalle de comprobante NO eliminado
+    const compsActivos = new Set(state.comprobantes.filter(c => !c.deleted_at).map(c => c.id));
+    return state.detalles.some(d => d.cuenta_id === id && compsActivos.has(d.comprobante_id));
+  }, [state.comprobantes, state.detalles]);
+
+  const deleteCuenta = useCallback((id: string): { ok: boolean; reason?: string } => {
+    let result: { ok: boolean; reason?: string } = { ok: false };
+    setState(s => {
+      const cuenta = s.cuentas.find(c => c.id === id);
+      if (!cuenta) { result = { ok: false, reason: 'Cuenta no encontrada.' }; return s; }
+      const compsActivos = new Set(s.comprobantes.filter(c => !c.deleted_at).map(c => c.id));
+      const tieneMov = s.detalles.some(d => d.cuenta_id === id && compsActivos.has(d.comprobante_id));
+      if (tieneMov) {
+        result = { ok: false, reason: 'No se puede eliminar: la cuenta tiene movimientos contables registrados.' };
+        return s;
+      }
+      // Verificar si es la cuenta de ingreso de algún producto activo
+      const usadaEnProducto = s.productos.some(p => p.cuenta_ingreso_id === id && p.activo);
+      if (usadaEnProducto) {
+        result = { ok: false, reason: 'No se puede eliminar: la cuenta está asociada a un producto activo.' };
+        return s;
+      }
+      result = { ok: true };
+      return { ...s, cuentas: s.cuentas.filter(c => c.id !== id) };
+    });
+    return result;
+  }, []);
+
   // ─── COMPROBANTES ────────────────────────────────────
   // BUG FIX #1: generateNumero inside setState
   const addComprobante = useCallback((
