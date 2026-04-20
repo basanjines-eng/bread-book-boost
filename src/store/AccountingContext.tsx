@@ -8,7 +8,7 @@ import {
   generateId, generateNumero, today,
   getInitialCuentas, getInitialProductos, getInitialStock,
   getInitialInsumos, getInitialStockInsumos,
-  getInitialRecetas, getNextIngresoCodigo,
+  getInitialRecetas, getNextIngresoCodigo, convertirUnidadFlexible,
 } from '@/lib/accounting';
 
 // ==================== STATE ====================
@@ -69,6 +69,8 @@ interface AccountingContextType {
   // Cuentas
   addCuenta: (c: Omit<Cuenta, 'id'>) => void;
   updateCuenta: (c: Cuenta) => void;
+  deleteCuenta: (id: string) => { ok: boolean; reason?: string };
+  cuentaTieneMovimientos: (id: string) => boolean;
   getCuenta: (id: string) => Cuenta | undefined;
   getCuentaByCodigo: (codigo: string) => Cuenta | undefined;
 
@@ -84,6 +86,7 @@ interface AccountingContextType {
 
   // Productos
   addProducto: (nombre: string) => void;
+  eliminarProducto: (id: string) => { ok: boolean; reason?: string };
   getProducto: (id: string) => Producto | undefined;
   getStockForProducto: (productoId: string) => StockProducto | undefined;
 
@@ -125,6 +128,9 @@ interface AccountingContextType {
   cerrarMes: (anio: number, mes: number, nota?: string) => void;
   reabrirMes: (anio: number, mes: number) => void;
   isMesCerrado: (fecha: string) => boolean;
+
+  // Reset
+  resetDatosOperativos: () => void;
 }
 
 const AccountingContext = createContext<AccountingContextType | null>(null);
@@ -154,6 +160,35 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
 
   const updateCuenta = useCallback((c: Cuenta) => {
     setState(s => ({ ...s, cuentas: s.cuentas.map(x => x.id === c.id ? c : x) }));
+  }, []);
+
+  const cuentaTieneMovimientos = useCallback((id: string): boolean => {
+    // Revisa si la cuenta aparece en cualquier detalle de comprobante NO eliminado
+    const compsActivos = new Set(state.comprobantes.filter(c => !c.deleted_at).map(c => c.id));
+    return state.detalles.some(d => d.cuenta_id === id && compsActivos.has(d.comprobante_id));
+  }, [state.comprobantes, state.detalles]);
+
+  const deleteCuenta = useCallback((id: string): { ok: boolean; reason?: string } => {
+    let result: { ok: boolean; reason?: string } = { ok: false };
+    setState(s => {
+      const cuenta = s.cuentas.find(c => c.id === id);
+      if (!cuenta) { result = { ok: false, reason: 'Cuenta no encontrada.' }; return s; }
+      const compsActivos = new Set(s.comprobantes.filter(c => !c.deleted_at).map(c => c.id));
+      const tieneMov = s.detalles.some(d => d.cuenta_id === id && compsActivos.has(d.comprobante_id));
+      if (tieneMov) {
+        result = { ok: false, reason: 'No se puede eliminar: la cuenta tiene movimientos contables registrados.' };
+        return s;
+      }
+      // Verificar si es la cuenta de ingreso de algún producto activo
+      const usadaEnProducto = s.productos.some(p => p.cuenta_ingreso_id === id && p.activo);
+      if (usadaEnProducto) {
+        result = { ok: false, reason: 'No se puede eliminar: la cuenta está asociada a un producto activo.' };
+        return s;
+      }
+      result = { ok: true };
+      return { ...s, cuentas: s.cuentas.filter(c => c.id !== id) };
+    });
+    return result;
   }, []);
 
   // ─── COMPROBANTES ────────────────────────────────────
@@ -255,6 +290,39 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         stock: [...s.stock, newStock],
       };
     });
+  }, []);
+
+  const eliminarProducto = useCallback((id: string): { ok: boolean; reason?: string } => {
+    let result: { ok: boolean; reason?: string } = { ok: false };
+    setState(s => {
+      const prod = s.productos.find(p => p.id === id);
+      if (!prod) { result = { ok: false, reason: 'Producto no encontrado.' }; return s; }
+      // Bloquear si tiene producciones o ventas activas
+      const tieneProd = s.producciones.some(p => p.producto_id === id && !p.deleted_at);
+      const tieneVentas = s.ventas.some(v => v.producto_id === id && !v.deleted_at);
+      if (tieneProd || tieneVentas) {
+        result = { ok: false, reason: 'No se puede eliminar: el producto tiene producciones o ventas registradas.' };
+        return s;
+      }
+      // Bloquear si la cuenta de ingreso tiene movimientos
+      if (prod.cuenta_ingreso_id) {
+        const compsActivos = new Set(s.comprobantes.filter(c => !c.deleted_at).map(c => c.id));
+        const cuentaTieneMov = s.detalles.some(d => d.cuenta_id === prod.cuenta_ingreso_id && compsActivos.has(d.comprobante_id));
+        if (cuentaTieneMov) {
+          result = { ok: false, reason: 'No se puede eliminar: la cuenta de ingreso tiene movimientos contables.' };
+          return s;
+        }
+      }
+      result = { ok: true };
+      return {
+        ...s,
+        productos: s.productos.filter(p => p.id !== id),
+        stock: s.stock.filter(st => st.producto_id !== id),
+        // Eliminar también la cuenta de ingreso si no tiene movimientos
+        cuentas: s.cuentas.filter(c => c.id !== prod.cuenta_ingreso_id),
+      };
+    });
+    return result;
   }, []);
 
   // ─── INSUMOS ─────────────────────────────────────────
@@ -417,12 +485,14 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
       const stk = state.stockInsumos.find(si => si.insumo_id === ri.insumo_id);
       if (stk && stk.costo_promedio > 0) {
         const insumo = state.insumos.find(i => i.id === ri.insumo_id);
-        // Convert cantidad_usada to base units using CPP
+        // Conversión flexible: mismo sistema métrico o equivalencia personalizada
         let cantidadBase = ri.cantidad_usada;
         if (insumo && ri.unidad_medida !== insumo.unidad_base) {
-          if (ri.unidad_medida === insumo.unidad_compra_habitual) {
-            cantidadBase = ri.cantidad_usada * insumo.equivalencia_compra;
-          }
+          const conv = convertirUnidadFlexible(
+            ri.cantidad_usada, ri.unidad_medida, insumo.unidad_base,
+            insumo.unidad_compra_habitual, insumo.equivalencia_compra,
+          );
+          if (conv !== null) cantidadBase = conv;
         }
         total += cantidadBase * stk.costo_promedio;
       }
@@ -474,9 +544,11 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
           if (stk && stk.costo_promedio > 0) {
             let cantidadBase = ri.cantidad_usada;
             if (insumo && ri.unidad_medida !== insumo.unidad_base) {
-              if (ri.unidad_medida === insumo.unidad_compra_habitual) {
-                cantidadBase = ri.cantidad_usada * insumo.equivalencia_compra;
-              }
+              const conv = convertirUnidadFlexible(
+                ri.cantidad_usada, ri.unidad_medida, insumo.unidad_base,
+                insumo.unidad_compra_habitual, insumo.equivalencia_compra,
+              );
+              if (conv !== null) cantidadBase = conv;
             }
             costoTotal += cantidadBase * stk.costo_promedio;
           }
@@ -506,15 +578,16 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         const stk = s.stockInsumos.find(si => si.insumo_id === ri.insumo_id);
         if (!stk) continue;
 
-        // BUG FIX #2: Proper unit conversion
-        let cantidadEnBase: number;
-        if (!ins || ri.unidad_medida === ins.unidad_base) {
-          cantidadEnBase = ri.cantidad_usada * prod.cantidad_lotes;
-        } else if (ri.unidad_medida === ins.unidad_compra_habitual) {
-          cantidadEnBase = ri.cantidad_usada * prod.cantidad_lotes * ins.equivalencia_compra;
-        } else {
-          cantidadEnBase = ri.cantidad_usada * prod.cantidad_lotes;
+        // Conversión flexible (mismo sistema métrico o equivalencia personalizada)
+        let cantidadUnitaria = ri.cantidad_usada;
+        if (ins && ri.unidad_medida !== ins.unidad_base) {
+          const conv = convertirUnidadFlexible(
+            ri.cantidad_usada, ri.unidad_medida, ins.unidad_base,
+            ins.unidad_compra_habitual, ins.equivalencia_compra,
+          );
+          if (conv !== null) cantidadUnitaria = conv;
         }
+        const cantidadEnBase = cantidadUnitaria * prod.cantidad_lotes;
 
         if (cantidadEnBase > stk.cantidad_actual + 0.01) {
           result = { ok: false, faltante: ins?.nombre || ri.insumo_id };
@@ -534,15 +607,16 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         if (stkIdx < 0) continue;
         const stk = newStockInsumos[stkIdx];
 
-        // BUG FIX #2: Same conversion logic for deduction
-        let cantidadEnBase: number;
-        if (!ins || ri.unidad_medida === ins.unidad_base) {
-          cantidadEnBase = ri.cantidad_usada * prod.cantidad_lotes;
-        } else if (ri.unidad_medida === ins.unidad_compra_habitual) {
-          cantidadEnBase = ri.cantidad_usada * prod.cantidad_lotes * ins.equivalencia_compra;
-        } else {
-          cantidadEnBase = ri.cantidad_usada * prod.cantidad_lotes;
+        // Misma conversión flexible para descuento
+        let cantidadUnitaria = ri.cantidad_usada;
+        if (ins && ri.unidad_medida !== ins.unidad_base) {
+          const conv = convertirUnidadFlexible(
+            ri.cantidad_usada, ri.unidad_medida, ins.unidad_base,
+            ins.unidad_compra_habitual, ins.equivalencia_compra,
+          );
+          if (conv !== null) cantidadUnitaria = conv;
         }
+        const cantidadEnBase = cantidadUnitaria * prod.cantidad_lotes;
 
         const costoInsumo = cantidadEnBase * stk.costo_promedio;
         costoTotal += costoInsumo;
@@ -677,9 +751,11 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
           if (stk && stk.costo_promedio > 0) {
             let cantidadBase = ri.cantidad_usada;
             if (insumo && ri.unidad_medida !== insumo.unidad_base) {
-              if (ri.unidad_medida === insumo.unidad_compra_habitual) {
-                cantidadBase = ri.cantidad_usada * insumo.equivalencia_compra;
-              }
+              const conv = convertirUnidadFlexible(
+                ri.cantidad_usada, ri.unidad_medida, insumo.unidad_base,
+                insumo.unidad_compra_habitual, insumo.equivalencia_compra,
+              );
+              if (conv !== null) cantidadBase = conv;
             }
             nuevoCostoTotal += cantidadBase * stk.costo_promedio;
           }
@@ -1160,6 +1236,24 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     return state.cierres.some(c => c.anio === d.getFullYear() && c.mes === d.getMonth() + 1 && c.cerrado);
   }, [state.cierres]);
 
+  // ─── RESET DATOS OPERATIVOS ──────────────────────────
+  // Limpia insumos, recetas, productos, producciones y ventas — conserva el plan de cuentas.
+  const resetDatosOperativos = useCallback(() => {
+    setState(s => ({
+      ...s,
+      productos: [],
+      stock: [],
+      insumos: [],
+      stockInsumos: [],
+      movimientosInsumos: [],
+      recetas: [],
+      recetaInsumos: [],
+      producciones: [],
+      ventas: [],
+      // Conservamos comprobantes, detalles, cuentas y cierres para no romper la contabilidad histórica.
+    }));
+  }, []);
+
   // ─── CONTEXT VALUE ───────────────────────────────────
   const value: AccountingContextType = {
     // Data
@@ -1178,10 +1272,10 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     recetaInsumos: state.recetaInsumos,
 
     // Functions
-    addCuenta, updateCuenta, getCuenta, getCuentaByCodigo,
+    addCuenta, updateCuenta, deleteCuenta, cuentaTieneMovimientos, getCuenta, getCuentaByCodigo,
     addComprobante, updateComprobante, deleteComprobante, contabilizar, pasarABorrador,
     getDetallesForComprobante, getComprobantesContabilizados, getDetallesContabilizados,
-    addProducto, getProducto, getStockForProducto,
+    addProducto, eliminarProducto, getProducto, getStockForProducto,
     addProduccion, confirmarProduccion, editarProduccion, eliminarProduccion, canModifyProduccion, actualizarCantidadEsperada,
     registrarVenta, editarVenta, eliminarVenta, recalcularCostosVentas,
     registrarMerma,
@@ -1189,6 +1283,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     addMovimientoInsumo, editMovimientoInsumo, deleteMovimientoInsumo,
     addReceta, updateReceta, deleteReceta, getRecetaInsumos, calcularCostoReceta,
     cerrarMes, reabrirMes, isMesCerrado,
+    resetDatosOperativos,
   };
 
   return (

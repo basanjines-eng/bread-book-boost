@@ -5,7 +5,17 @@ export type LadoContable = 'DEBE' | 'HABER';
 export type EstadoComprobante = 'BORRADOR' | 'CONTABILIZADO';
 export type EstadoProduccion = 'BORRADOR' | 'CONFIRMADA' | 'ANULADA';
 export type TipoMovimientoInsumo = 'ENTRADA' | 'SALIDA' | 'AJUSTE';
-export type CategoriaInsumo = 'Ingredientes' | 'Combustible' | 'Empaque' | 'Otros ingredientes';
+// Categoría libre: el usuario puede crear cualquier categoría. Mantenemos sugeridas como guía.
+export type CategoriaInsumo = string;
+export const CATEGORIAS_SUGERIDAS = ['Ingredientes', 'Combustible', 'Empaque', 'Otros ingredientes', 'Lácteos', 'Bebidas', 'Limpieza', 'Otros'] as const;
+
+// Lista sugerida de unidades (el usuario puede escribir cualquier otra)
+export const UNIDADES_SUGERIDAS = [
+  'g', 'kg', 'mg', 'ml', 'l',
+  'unidad', 'unidades', 'docena',
+  'bolsa', 'caja', 'paquete', 'lata', 'botella',
+  'arroba', 'quintal', 'cucharada', 'cucharadita', 'taza',
+] as const;
 
 // ==================== TABLES ====================
 export interface Cuenta {
