@@ -1228,6 +1228,24 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     return state.cierres.some(c => c.anio === d.getFullYear() && c.mes === d.getMonth() + 1 && c.cerrado);
   }, [state.cierres]);
 
+  // ─── RESET DATOS OPERATIVOS ──────────────────────────
+  // Limpia insumos, recetas, productos, producciones y ventas — conserva el plan de cuentas.
+  const resetDatosOperativos = useCallback(() => {
+    setState(s => ({
+      ...s,
+      productos: [],
+      stock: [],
+      insumos: [],
+      stockInsumos: [],
+      movimientosInsumos: [],
+      recetas: [],
+      recetaInsumos: [],
+      producciones: [],
+      ventas: [],
+      // Conservamos comprobantes, detalles, cuentas y cierres para no romper la contabilidad histórica.
+    }));
+  }, []);
+
   // ─── CONTEXT VALUE ───────────────────────────────────
   const value: AccountingContextType = {
     // Data
@@ -1246,10 +1264,10 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     recetaInsumos: state.recetaInsumos,
 
     // Functions
-    addCuenta, updateCuenta, getCuenta, getCuentaByCodigo,
+    addCuenta, updateCuenta, deleteCuenta, cuentaTieneMovimientos, getCuenta, getCuentaByCodigo,
     addComprobante, updateComprobante, deleteComprobante, contabilizar, pasarABorrador,
     getDetallesForComprobante, getComprobantesContabilizados, getDetallesContabilizados,
-    addProducto, getProducto, getStockForProducto,
+    addProducto, eliminarProducto, getProducto, getStockForProducto,
     addProduccion, confirmarProduccion, editarProduccion, eliminarProduccion, canModifyProduccion, actualizarCantidadEsperada,
     registrarVenta, editarVenta, eliminarVenta, recalcularCostosVentas,
     registrarMerma,
@@ -1257,6 +1275,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     addMovimientoInsumo, editMovimientoInsumo, deleteMovimientoInsumo,
     addReceta, updateReceta, deleteReceta, getRecetaInsumos, calcularCostoReceta,
     cerrarMes, reabrirMes, isMesCerrado,
+    resetDatosOperativos,
   };
 
   return (
