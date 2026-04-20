@@ -8,7 +8,7 @@ import {
   generateId, generateNumero, today,
   getInitialCuentas, getInitialProductos, getInitialStock,
   getInitialInsumos, getInitialStockInsumos,
-  getInitialRecetas, getNextIngresoCodigo,
+  getInitialRecetas, getNextIngresoCodigo, convertirUnidadFlexible,
 } from '@/lib/accounting';
 
 // ==================== STATE ====================
