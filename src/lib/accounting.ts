@@ -88,17 +88,9 @@ export function getInitialCuentas(): Cuenta[] {
   ];
 }
 
-export function getInitialProductos(cuentas: Cuenta[]): Producto[] {
-  const cuentaMap: Record<string, string> = {
-    'Pan': 'I1.1',
-    'Queque de Plátano': 'I1.2',
-    'Queque de Naranja': 'I1.3',
-  };
-  return [
-    { id: generateId(), nombre: 'Pan', cuenta_ingreso_id: cuentas.find(c => c.codigo === cuentaMap['Pan'])?.id, activo: true },
-    { id: generateId(), nombre: 'Queque de Plátano', cuenta_ingreso_id: cuentas.find(c => c.codigo === cuentaMap['Queque de Plátano'])?.id, activo: true },
-    { id: generateId(), nombre: 'Queque de Naranja', cuenta_ingreso_id: cuentas.find(c => c.codigo === cuentaMap['Queque de Naranja'])?.id, activo: true },
-  ];
+export function getInitialProductos(_cuentas: Cuenta[]): Producto[] {
+  // Sin productos demo — el usuario los crea desde cero.
+  return [];
 }
 
 export function getNextIngresoCodigo(cuentas: Cuenta[]): string {
