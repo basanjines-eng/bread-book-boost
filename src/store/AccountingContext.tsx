@@ -485,12 +485,14 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
       const stk = state.stockInsumos.find(si => si.insumo_id === ri.insumo_id);
       if (stk && stk.costo_promedio > 0) {
         const insumo = state.insumos.find(i => i.id === ri.insumo_id);
-        // Convert cantidad_usada to base units using CPP
+        // Conversión flexible: mismo sistema métrico o equivalencia personalizada
         let cantidadBase = ri.cantidad_usada;
         if (insumo && ri.unidad_medida !== insumo.unidad_base) {
-          if (ri.unidad_medida === insumo.unidad_compra_habitual) {
-            cantidadBase = ri.cantidad_usada * insumo.equivalencia_compra;
-          }
+          const conv = convertirUnidadFlexible(
+            ri.cantidad_usada, ri.unidad_medida, insumo.unidad_base,
+            insumo.unidad_compra_habitual, insumo.equivalencia_compra,
+          );
+          if (conv !== null) cantidadBase = conv;
         }
         total += cantidadBase * stk.costo_promedio;
       }
