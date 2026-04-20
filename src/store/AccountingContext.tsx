@@ -578,15 +578,16 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         const stk = s.stockInsumos.find(si => si.insumo_id === ri.insumo_id);
         if (!stk) continue;
 
-        // BUG FIX #2: Proper unit conversion
-        let cantidadEnBase: number;
-        if (!ins || ri.unidad_medida === ins.unidad_base) {
-          cantidadEnBase = ri.cantidad_usada * prod.cantidad_lotes;
-        } else if (ri.unidad_medida === ins.unidad_compra_habitual) {
-          cantidadEnBase = ri.cantidad_usada * prod.cantidad_lotes * ins.equivalencia_compra;
-        } else {
-          cantidadEnBase = ri.cantidad_usada * prod.cantidad_lotes;
+        // Conversión flexible (mismo sistema métrico o equivalencia personalizada)
+        let cantidadUnitaria = ri.cantidad_usada;
+        if (ins && ri.unidad_medida !== ins.unidad_base) {
+          const conv = convertirUnidadFlexible(
+            ri.cantidad_usada, ri.unidad_medida, ins.unidad_base,
+            ins.unidad_compra_habitual, ins.equivalencia_compra,
+          );
+          if (conv !== null) cantidadUnitaria = conv;
         }
+        const cantidadEnBase = cantidadUnitaria * prod.cantidad_lotes;
 
         if (cantidadEnBase > stk.cantidad_actual + 0.01) {
           result = { ok: false, faltante: ins?.nombre || ri.insumo_id };
@@ -606,15 +607,16 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         if (stkIdx < 0) continue;
         const stk = newStockInsumos[stkIdx];
 
-        // BUG FIX #2: Same conversion logic for deduction
-        let cantidadEnBase: number;
-        if (!ins || ri.unidad_medida === ins.unidad_base) {
-          cantidadEnBase = ri.cantidad_usada * prod.cantidad_lotes;
-        } else if (ri.unidad_medida === ins.unidad_compra_habitual) {
-          cantidadEnBase = ri.cantidad_usada * prod.cantidad_lotes * ins.equivalencia_compra;
-        } else {
-          cantidadEnBase = ri.cantidad_usada * prod.cantidad_lotes;
+        // Misma conversión flexible para descuento
+        let cantidadUnitaria = ri.cantidad_usada;
+        if (ins && ri.unidad_medida !== ins.unidad_base) {
+          const conv = convertirUnidadFlexible(
+            ri.cantidad_usada, ri.unidad_medida, ins.unidad_base,
+            ins.unidad_compra_habitual, ins.equivalencia_compra,
+          );
+          if (conv !== null) cantidadUnitaria = conv;
         }
+        const cantidadEnBase = cantidadUnitaria * prod.cantidad_lotes;
 
         const costoInsumo = cantidadEnBase * stk.costo_promedio;
         costoTotal += costoInsumo;
