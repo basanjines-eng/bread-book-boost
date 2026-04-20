@@ -544,9 +544,11 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
           if (stk && stk.costo_promedio > 0) {
             let cantidadBase = ri.cantidad_usada;
             if (insumo && ri.unidad_medida !== insumo.unidad_base) {
-              if (ri.unidad_medida === insumo.unidad_compra_habitual) {
-                cantidadBase = ri.cantidad_usada * insumo.equivalencia_compra;
-              }
+              const conv = convertirUnidadFlexible(
+                ri.cantidad_usada, ri.unidad_medida, insumo.unidad_base,
+                insumo.unidad_compra_habitual, insumo.equivalencia_compra,
+              );
+              if (conv !== null) cantidadBase = conv;
             }
             costoTotal += cantidadBase * stk.costo_promedio;
           }
