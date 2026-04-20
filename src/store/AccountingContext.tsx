@@ -69,6 +69,8 @@ interface AccountingContextType {
   // Cuentas
   addCuenta: (c: Omit<Cuenta, 'id'>) => void;
   updateCuenta: (c: Cuenta) => void;
+  deleteCuenta: (id: string) => { ok: boolean; reason?: string };
+  cuentaTieneMovimientos: (id: string) => boolean;
   getCuenta: (id: string) => Cuenta | undefined;
   getCuentaByCodigo: (codigo: string) => Cuenta | undefined;
 
@@ -84,6 +86,7 @@ interface AccountingContextType {
 
   // Productos
   addProducto: (nombre: string) => void;
+  eliminarProducto: (id: string) => { ok: boolean; reason?: string };
   getProducto: (id: string) => Producto | undefined;
   getStockForProducto: (productoId: string) => StockProducto | undefined;
 
@@ -125,6 +128,9 @@ interface AccountingContextType {
   cerrarMes: (anio: number, mes: number, nota?: string) => void;
   reabrirMes: (anio: number, mes: number) => void;
   isMesCerrado: (fecha: string) => boolean;
+
+  // Reset
+  resetDatosOperativos: () => void;
 }
 
 const AccountingContext = createContext<AccountingContextType | null>(null);
