@@ -8,13 +8,13 @@
   :root {
     /*
       Palette:
-      1. #bfbfbf → medium gray    → nav bg, brand, primary actions
-      2. #cececd → soft gray-green → secondary, muted elements
-      3. #dbdcda → light gray     → borders, accents, card bg
-      4. #ebebeb → pale gray      → background
+      1. #35504A → dark teal      → nav bg, brand, primary actions
+      2. #C7AC8F → warm sand      → secondary, muted elements
+      3. #c4c4c4 → light gray     → borders, accents
+      4. #D9D9D9 → pale gray      → background
     */
 
-    --background: 0 0% 92%;            /* #ebebeb pale gray */
+    --background: 0 0% 85%;            /* #D9D9D9 pale gray */
     --foreground: 0 0% 20%;            /* dark gray text */
 
     --card: 0 0% 100%;                 /* white cards for contrast */
@@ -23,20 +23,20 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 20%;
 
-    /* Primary: #bfbfbf medium gray */
-    --primary: 0 0% 75%;
-    --primary-foreground: 0 0% 100%;
+    /* Primary: #35504A dark teal */
+    --primary: 167 20% 26%;
+    --primary-foreground: 0 0% 98%;
 
-    /* Secondary: #cececd */
-    --secondary: 60 1% 81%;
+    /* Secondary: #C7AC8F warm sand */
+    --secondary: 31 33% 67%;
     --secondary-foreground: 0 0% 20%;
 
     /* Muted */
-    --muted: 90 3% 86%;                /* #dbdcda */
+    --muted: 0 0% 77%;
     --muted-foreground: 0 0% 45%;
 
     /* Accent */
-    --accent: 90 3% 86%;
+    --accent: 31 33% 67%;
     --accent-foreground: 0 0% 20%;
 
     --destructive: 4 65% 52%;
@@ -48,26 +48,26 @@
     --warning: 35 80% 50%;
     --warning-foreground: 0 0% 15%;
 
-    --border: 90 3% 86%;               /* #dbdcda */
-    --input: 60 1% 88%;
-    --ring: 0 0% 75%;
+    --border: 0 0% 77%;
+    --input: 0 0% 80%;
+    --ring: 167 20% 26%;
 
     --radius: 0.75rem;
 
     /* ── TopNav tokens ── */
-    --nav-bg: 0 0% 75%;                /* #bfbfbf */
-    --nav-border: 0 0% 68%;
-    --nav-foreground: 0 0% 100%;       /* white text */
-    --nav-muted: 0 0% 92%;             /* pale gray inactive */
-    --nav-hover-bg: 0 0% 68%;          /* slightly darker */
-    --nav-active-bg: 0 0% 55%;         /* active state */
-    --nav-active-text: 0 0% 100%;
-    --nav-dropdown-bg: 0 0% 100%;
-    --brand-accent: 0 0% 55%;
+    --nav-bg: 167 20% 26%;             /* #35504A */
+    --nav-border: 167 20% 20%;
+    --nav-foreground: 0 0% 98%;        /* white text */
+    --nav-muted: 31 33% 67%;           /* warm sand inactive */
+    --nav-hover-bg: 167 20% 32%;       /* slightly lighter */
+    --nav-active-bg: 31 33% 67%;       /* sand active state */
+    --nav-active-text: 0 0% 20%;
+    --nav-dropdown-bg: 0 0% 98%;
+    --brand-accent: 31 33% 67%;
 
-    --chart-1: 0 0% 75%;
-    --chart-2: 60 1% 81%;
-    --chart-3: 90 3% 86%;
+    --chart-1: 167 20% 26%;
+    --chart-2: 31 33% 67%;
+    --chart-3: 167 20% 40%;
     --chart-4: 35 80% 50%;
     --chart-5: 4 65% 52%;
 
@@ -75,39 +75,39 @@
   }
 
   .dark {
-    --background: 0 0% 15%;
+    --background: 167 15% 10%;
     --foreground: 0 0% 92%;
-    --card: 0 0% 18%;
+    --card: 167 15% 14%;
     --card-foreground: 0 0% 92%;
-    --popover: 0 0% 18%;
+    --popover: 167 15% 14%;
     --popover-foreground: 0 0% 92%;
-    --primary: 60 1% 81%;
-    --primary-foreground: 0 0% 15%;
-    --secondary: 0 0% 22%;
-    --secondary-foreground: 60 1% 81%;
-    --muted: 0 0% 22%;
+    --primary: 31 33% 67%;
+    --primary-foreground: 167 20% 12%;
+    --secondary: 167 20% 22%;
+    --secondary-foreground: 31 33% 67%;
+    --muted: 167 10% 20%;
     --muted-foreground: 0 0% 60%;
-    --accent: 0 0% 25%;
-    --accent-foreground: 60 1% 81%;
+    --accent: 167 15% 22%;
+    --accent-foreground: 31 33% 67%;
     --destructive: 4 58% 45%;
     --destructive-foreground: 0 0% 100%;
     --success: 142 35% 42%;
     --success-foreground: 0 0% 100%;
     --warning: 35 65% 50%;
     --warning-foreground: 0 0% 12%;
-    --border: 0 0% 25%;
-    --input: 0 0% 25%;
-    --ring: 60 1% 81%;
+    --border: 167 10% 22%;
+    --input: 167 10% 22%;
+    --ring: 31 33% 67%;
 
-    --nav-bg: 0 0% 12%;
-    --nav-border: 0 0% 18%;
+    --nav-bg: 167 20% 14%;
+    --nav-border: 167 15% 20%;
     --nav-foreground: 0 0% 92%;
-    --nav-muted: 0 0% 60%;
-    --nav-hover-bg: 0 0% 18%;
-    --nav-active-bg: 0 0% 75%;
-    --nav-active-text: 0 0% 100%;
-    --nav-dropdown-bg: 0 0% 18%;
-    --brand-accent: 60 1% 81%;
+    --nav-muted: 0 0% 55%;
+    --nav-hover-bg: 167 15% 20%;
+    --nav-active-bg: 31 33% 67%;
+    --nav-active-text: 167 20% 12%;
+    --nav-dropdown-bg: 167 15% 14%;
+    --brand-accent: 31 33% 67%;
   }
 }
 
