@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatMoney, today } from "@/lib/accounting";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, X, CalendarDays, BookOpen, Lock, RefreshCw } from "lucide-react";
+import { Plus, Pencil, Trash2, X, CalendarDays, BookOpen, Lock, RefreshCw, PackagePlus } from "lucide-react";
 
 interface IngredienteLine {
   insumo_id: string;
@@ -22,7 +22,7 @@ interface IngredienteLine {
 export default function RecetasPage() {
   const {
     recetas, productos, insumos, getProducto, getInsumo, getStockForInsumo,
-    addReceta, updateReceta, deleteReceta, getRecetaInsumos, calcularCostoReceta,
+    addReceta, updateReceta, deleteReceta, getRecetaInsumos, calcularCostoReceta, addProducto,
   } = useAccounting();
 
   const [showForm, setShowForm] = useState(false);
@@ -33,6 +33,25 @@ export default function RecetasPage() {
   const [formFecha, setFormFecha] = useState(today());
   const [ingredientes, setIngredientes] = useState<IngredienteLine[]>([{ insumo_id: "", cantidad_usada: "", unidad_medida: "" }]);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [showNewProducto, setShowNewProducto] = useState(false);
+  const [nuevoProductoNombre, setNuevoProductoNombre] = useState("");
+
+  const handleCrearProducto = () => {
+    const nombre = nuevoProductoNombre.trim();
+    if (!nombre) { toast.error("Ingresá un nombre para el producto"); return; }
+    if (productos.some(p => p.nombre.toLowerCase() === nombre.toLowerCase() && p.activo)) {
+      toast.error("Ya existe un producto con ese nombre"); return;
+    }
+    addProducto(nombre);
+    toast.success(`Producto "${nombre}" creado`);
+    // Select the newly created product (it will be the last one added)
+    setTimeout(() => {
+      const newProd = productos.find(p => p.nombre.toLowerCase() === nombre.toLowerCase());
+      // Since state updates async, we rely on re-render; for now just close the inline form
+    }, 0);
+    setNuevoProductoNombre("");
+    setShowNewProducto(false);
+  };
 
   const recetasEstandar = recetas.filter(r => !r.deleted_at && r.activo && !r.fecha_especifica);
   const recetasDia = recetas.filter(r => !r.deleted_at && r.fecha_especifica).sort((a, b) =>
@@ -326,12 +345,35 @@ export default function RecetasPage() {
               </div>
               <div>
                 <Label>Producto Asociado *</Label>
-                <Select value={formProductoId} onValueChange={handleProductoChange}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                  <SelectContent>
-                    {productos.filter(p => p.activo).map(p => <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Select value={formProductoId} onValueChange={handleProductoChange}>
+                    <SelectTrigger className="flex-1"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                    <SelectContent>
+                      {productos.filter(p => p.activo).map(p => <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" title="Crear producto nuevo"
+                    onClick={() => setShowNewProducto(!showNewProducto)}>
+                    <PackagePlus className="h-4 w-4" />
+                  </Button>
+                </div>
+                {showNewProducto && (
+                  <div className="mt-2 flex gap-2 items-center p-2 rounded-md border bg-muted/50">
+                    <Input
+                      value={nuevoProductoNombre}
+                      onChange={e => setNuevoProductoNombre(e.target.value)}
+                      placeholder="Nombre del nuevo producto"
+                      className="flex-1 h-8 text-sm"
+                      onKeyDown={e => e.key === 'Enter' && handleCrearProducto()}
+                    />
+                    <Button type="button" size="sm" className="h-8" onClick={handleCrearProducto}>
+                      Crear
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => { setShowNewProducto(false); setNuevoProductoNombre(""); }}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )}
                 {formTipo === 'dia' && formProductoId && !recetasEstandar.find(r => r.producto_id === formProductoId) && (
                   <p className="text-xs text-amber-600 mt-1">⚠️ Este producto no tiene receta estándar — ingresá los ingredientes manualmente.</p>
                 )}
