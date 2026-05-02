@@ -165,6 +165,13 @@ export default function RecetasPage() {
     const prod = getProducto(r.producto_id);
     const ings = getRecetaInsumos(r.id);
     const costo = calcularCostoReceta(r.id);
+    const costosPorIngrediente = ings.map(ing => {
+      const ins = getInsumo(ing.insumo_id);
+      const stk = getStockForInsumo(ing.insumo_id);
+      const cpp = stk?.costo_promedio || 0;
+      const costoIng = ing.cantidad_usada * cpp;
+      return { ing, ins, cpp, costoIng };
+    });
 
     // Para recetas del día, obtener la receta estándar del mismo producto para comparar
     const recetaBase = esDia ? recetasEstandar.find(re => re.producto_id === r.producto_id) : null;
@@ -202,17 +209,19 @@ export default function RecetasPage() {
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="space-y-1">
-            {ings.map(ing => {
-              const ins = getInsumo(ing.insumo_id);
-              const stk = getStockForInsumo(ing.insumo_id);
-              const costoIng = ing.cantidad_usada * (stk?.costo_promedio || 0);
+            <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 text-xs text-muted-foreground mb-1 px-1">
+              <span>Ingrediente</span>
+              <span className="text-right">CPP</span>
+              <span className="text-right">Subtotal</span>
+            </div>
+            {costosPorIngrediente.map(({ ing, ins, cpp, costoIng }) => {
               // Comparar con receta base si es del día
               const ingBase = ingsBase.find(ib => ib.insumo_id === ing.insumo_id);
               const cambio = ingBase && ingBase.cantidad_usada !== ing.cantidad_usada;
               const subio = ingBase && ing.cantidad_usada > ingBase.cantidad_usada;
               return (
-                <div key={ing.id} className="flex justify-between text-sm">
-                  <span className={cambio ? (subio ? "text-red-600 font-medium" : "text-green-600 font-medium") : ""}>
+                <div key={ing.id} className="grid grid-cols-[1fr_auto_auto] gap-x-3 text-sm items-center">
+                  <span className={`truncate ${cambio ? (subio ? "text-red-600 font-medium" : "text-green-600 font-medium") : ""}`}>
                     {ins?.nombre || '-'} ({ing.cantidad_usada} {ing.unidad_medida})
                     {cambio && ingBase && (
                       <span className="text-xs ml-1 opacity-70">
@@ -220,7 +229,8 @@ export default function RecetasPage() {
                       </span>
                     )}
                   </span>
-                  <span className="text-muted-foreground">{formatMoney(costoIng)}</span>
+                  <span className="text-right text-muted-foreground text-xs whitespace-nowrap">{formatMoney(cpp)}/{ing.unidad_medida}</span>
+                  <span className="text-right font-medium whitespace-nowrap">{formatMoney(costoIng)}</span>
                 </div>
               );
             })}
