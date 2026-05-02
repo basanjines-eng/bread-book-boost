@@ -35,6 +35,18 @@ export default function RecetasPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [showNewProducto, setShowNewProducto] = useState(false);
   const [nuevoProductoNombre, setNuevoProductoNombre] = useState("");
+  const [pendingProductoName, setPendingProductoName] = useState<string | null>(null);
+
+  // Auto-select newly created product once it appears in the list
+  React.useEffect(() => {
+    if (pendingProductoName) {
+      const found = productos.find(p => p.nombre.toLowerCase() === pendingProductoName.toLowerCase() && p.activo);
+      if (found) {
+        setFormProductoId(found.id);
+        setPendingProductoName(null);
+      }
+    }
+  }, [productos, pendingProductoName]);
 
   const handleCrearProducto = () => {
     const nombre = nuevoProductoNombre.trim();
@@ -44,11 +56,7 @@ export default function RecetasPage() {
     }
     addProducto(nombre);
     toast.success(`Producto "${nombre}" creado`);
-    // Select the newly created product (it will be the last one added)
-    setTimeout(() => {
-      const newProd = productos.find(p => p.nombre.toLowerCase() === nombre.toLowerCase());
-      // Since state updates async, we rely on re-render; for now just close the inline form
-    }, 0);
+    setPendingProductoName(nombre);
     setNuevoProductoNombre("");
     setShowNewProducto(false);
   };
