@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAccounting } from "@/store/AccountingContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,7 @@ export default function RecetasPage() {
   const [pendingProductoName, setPendingProductoName] = useState<string | null>(null);
 
   // Auto-select newly created product once it appears in the list
-  React.useEffect(() => {
+  useEffect(() => {
     if (pendingProductoName) {
       const found = productos.find(p => p.nombre.toLowerCase() === pendingProductoName.toLowerCase() && p.activo);
       if (found) {
