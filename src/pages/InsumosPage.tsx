@@ -437,8 +437,8 @@ export default function InsumosPage() {
                             <td className={`text-right py-2 px-2 font-bold ${estado === 'critico' ? 'text-destructive' : estado === 'bajo' ? 'text-warning' : ''}`}>
                               {stk?.cantidad_actual.toFixed(1) || '0'}
                             </td>
-                            <td className="text-right py-2 px-2">{formatMoney(stk?.costo_promedio || 0)}</td>
-                            <td className="text-right py-2 px-2">{formatMoney(stk?.valor_actual || 0)}</td>
+                            <td className="text-right py-2 px-2 font-semibold text-primary">{formatMoney(stk?.costo_promedio || 0)}<span className="block text-[10px] text-muted-foreground font-normal">/{i.unidad_base}</span></td>
+                            <td className="text-right py-2 px-2 font-semibold">{formatMoney(stk?.valor_actual || 0)}</td>
                             <td className="text-center py-2 px-2">
                               {estado === 'critico' && <Badge variant="destructive" className="text-[10px]">Crítico</Badge>}
                               {estado === 'bajo' && <Badge className="text-[10px] bg-warning text-warning-foreground">Bajo</Badge>}
