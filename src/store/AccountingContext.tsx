@@ -394,7 +394,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
             newVal = newCant > 0 ? newCant * si.costo_promedio : 0;
           }
         }
-        const newCPP = newCant > 0 ? newVal / newCant : 0;
+        const newCPP = newCant > 0 ? newVal / newCant : si.costo_promedio; // preserve last CPP when stock hits 0
         return { ...si, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCPP, updated_at: now };
       });
 
@@ -647,7 +647,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         if (stk.producto_id !== prod.producto_id) return stk;
         const newCant = stk.cantidad_actual + prod.cantidad_producida;
         const newVal = stk.valor_actual + costoTotal;
-        return { ...stk, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : 0, updated_at: now };
+        return { ...stk, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : stk.costo_promedio, updated_at: now };
       });
 
       // Create comprobante - BUG FIX #1: generateNumero inside setState
@@ -724,7 +724,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
           if (stk.producto_id !== prod.producto_id) return stk;
           const newCant = Math.max(0, stk.cantidad_actual - prod.cantidad_producida);
           const newVal = Math.max(0, stk.valor_actual - prod.costo_total_produccion);
-          return { ...stk, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : 0, updated_at: new Date().toISOString() };
+          return { ...stk, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : stk.costo_promedio, updated_at: new Date().toISOString() };
         });
 
         // Revert insumo stock (re-add consumed)
@@ -772,7 +772,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
           if (stk.producto_id !== data.producto_id) return stk;
           const newCant = stk.cantidad_actual + nuevaCantidadProducida;
           const newVal = stk.valor_actual + nuevoCostoTotal;
-          return { ...stk, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : 0, updated_at: new Date().toISOString() };
+          return { ...stk, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : stk.costo_promedio, updated_at: new Date().toISOString() };
         });
       }
 
@@ -836,7 +836,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
           if (stk.producto_id !== prod.producto_id) return stk;
           const newCant = Math.max(0, stk.cantidad_actual - prod.cantidad_producida);
           const newVal = Math.max(0, stk.valor_actual - prod.costo_total_produccion);
-          return { ...stk, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : 0, updated_at: now };
+          return { ...stk, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : stk.costo_promedio, updated_at: now };
         });
       }
 
@@ -889,7 +889,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
       const newVal = Math.max(0, stk.valor_actual - costoTotal);
       const newStock = s.stock.map(st =>
         st.producto_id === v.producto_id
-          ? { ...st, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : 0, updated_at: new Date().toISOString() }
+          ? { ...st, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : stk.costo_promedio, updated_at: new Date().toISOString() }
           : st
       );
 
@@ -989,7 +989,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         if (stk.producto_id !== venta.producto_id) return stk;
         const newCant = stk.cantidad_actual + venta.cantidad_vendida;
         const newVal = stk.valor_actual + venta.costo_total_venta;
-        return { ...stk, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : 0, updated_at: now };
+        return { ...stk, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : stk.costo_promedio, updated_at: now };
       });
 
       // BUG FIX #3: Get cost from last confirmed production, not CPP
@@ -1008,7 +1008,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         if (stk.producto_id !== data.producto_id) return stk;
         const newCant = stk.cantidad_actual - data.cantidad_vendida;
         const newVal = Math.max(0, stk.valor_actual - costoTotal);
-        return { ...stk, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : 0, updated_at: now };
+        return { ...stk, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : stk.costo_promedio, updated_at: now };
       });
 
       // Update venta
@@ -1108,7 +1108,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         if (stk.producto_id !== venta.producto_id) return stk;
         const newCant = stk.cantidad_actual + venta.cantidad_vendida;
         const newVal = stk.valor_actual + venta.costo_total_venta;
-        return { ...stk, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : 0, updated_at: now };
+        return { ...stk, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : stk.costo_promedio, updated_at: now };
       });
 
       // Soft-delete comprobante
@@ -1179,7 +1179,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
       const newVal = Math.max(0, stk.valor_actual - costoMerma);
       const newStock = s.stock.map(st =>
         st.producto_id === productoId
-          ? { ...st, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : 0, updated_at: now }
+          ? { ...st, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCant > 0 ? newVal / newCant : stk.costo_promedio, updated_at: now }
           : st
       );
 
@@ -1300,6 +1300,7 @@ function recalcStockInsumos(currentStock: StockInsumo[], insumos: Insumo[], movi
     const activeMovs = movimientos.filter(m => m.insumo_id === si.insumo_id && !m.deleted_at);
     let cant = 0;
     let val = 0;
+    let lastCPP = 0;
     for (const m of activeMovs.sort((a, b) => a.fecha.localeCompare(b.fecha))) {
       if (m.tipo_movimiento === 'ENTRADA') {
         cant += m.cantidad_equivalente_base;
@@ -1310,12 +1311,20 @@ function recalcStockInsumos(currentStock: StockInsumo[], insumos: Insumo[], movi
         val = Math.max(0, cant * cpp);
       } else {
         // AJUSTE
-        cant = m.cantidad_equivalente_base;
-        const cpp = cant > 0 ? val / cant : 0;
-        val = cant * cpp;
+        if (m.motivo === '__INVENTARIO_INICIAL__') {
+          // Inventario inicial: set both quantity and value from the movement
+          cant = m.cantidad_equivalente_base;
+          val = m.costo_total;
+        } else {
+          // Normal adjustment: add or subtract (cantidad_equivalente_base can be negative)
+          cant = Math.max(0, cant + m.cantidad_equivalente_base);
+          const cpp = cant > 0 ? val / cant : lastCPP;
+          val = cant * cpp;
+        }
       }
+      if (cant > 0) lastCPP = val / cant;
     }
-    const cpp = cant > 0 ? val / cant : 0;
+    const cpp = cant > 0 ? val / cant : lastCPP;
     return { ...si, cantidad_actual: cant, valor_actual: val, costo_promedio: cpp, updated_at: now };
   });
 }

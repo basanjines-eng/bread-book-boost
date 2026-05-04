@@ -226,6 +226,8 @@ export default function InsumosPage() {
     const isBaseUnit = (movUnidad || ins.unidad_base) === ins.unidad_base;
     const cantBase = isBaseUnit ? cantNum : cantNum * ins.equivalencia_compra;
     const precioUnit = parseFloat(movPrecio) || 0;
+    if (movTipo === 'ENTRADA' && precioUnit <= 0) { toast.error("El precio unitario debe ser mayor a 0 para entradas"); return; }
+    if (movTipo === 'AJUSTE' && movEsInventarioInicial && precioUnit <= 0) { toast.error("El precio unitario debe ser mayor a 0 para inventario inicial"); return; }
     const costoTotal = movTipo === 'ENTRADA' ? precioUnit * cantNum : 0;
     let cantEquiv: number;
     if (movTipo === 'AJUSTE' && movEsInventarioInicial) {
