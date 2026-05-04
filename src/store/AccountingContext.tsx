@@ -394,7 +394,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
             newVal = newCant > 0 ? newCant * si.costo_promedio : 0;
           }
         }
-        const newCPP = newCant > 0 ? newVal / newCant : 0;
+        const newCPP = newCant > 0 ? newVal / newCant : si.costo_promedio; // preserve last CPP when stock hits 0
         return { ...si, cantidad_actual: newCant, valor_actual: newVal, costo_promedio: newCPP, updated_at: now };
       });
 
@@ -1300,6 +1300,7 @@ function recalcStockInsumos(currentStock: StockInsumo[], insumos: Insumo[], movi
     const activeMovs = movimientos.filter(m => m.insumo_id === si.insumo_id && !m.deleted_at);
     let cant = 0;
     let val = 0;
+    let lastCPP = 0;
     for (const m of activeMovs.sort((a, b) => a.fecha.localeCompare(b.fecha))) {
       if (m.tipo_movimiento === 'ENTRADA') {
         cant += m.cantidad_equivalente_base;
@@ -1310,12 +1311,20 @@ function recalcStockInsumos(currentStock: StockInsumo[], insumos: Insumo[], movi
         val = Math.max(0, cant * cpp);
       } else {
         // AJUSTE
-        cant = m.cantidad_equivalente_base;
-        const cpp = cant > 0 ? val / cant : 0;
-        val = cant * cpp;
+        if (m.motivo === '__INVENTARIO_INICIAL__') {
+          // Inventario inicial: set both quantity and value from the movement
+          cant = m.cantidad_equivalente_base;
+          val = m.costo_total;
+        } else {
+          // Normal adjustment: add or subtract (cantidad_equivalente_base can be negative)
+          cant = Math.max(0, cant + m.cantidad_equivalente_base);
+          const cpp = cant > 0 ? val / cant : lastCPP;
+          val = cant * cpp;
+        }
       }
+      if (cant > 0) lastCPP = val / cant;
     }
-    const cpp = cant > 0 ? val / cant : 0;
+    const cpp = cant > 0 ? val / cant : lastCPP;
     return { ...si, cantidad_actual: cant, valor_actual: val, costo_promedio: cpp, updated_at: now };
   });
 }
