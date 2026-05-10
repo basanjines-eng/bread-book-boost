@@ -113,7 +113,10 @@ interface AccountingContextType {
   addInsumo: (i: Omit<Insumo, 'id' | 'created_at' | 'updated_at'>) => void;
   updateInsumo: (i: Insumo) => void;
   deleteInsumo: (id: string) => void;
-  addMovimientoInsumo: (m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>, cuentaPagoId?: string) => string;
+  addMovimientoInsumo: (
+    m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>,
+    cuentaPago?: string | { cuenta_id: string; monto: number }[],
+  ) => string;
   editMovimientoInsumo: (id: string, data: Partial<Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>>) => boolean;
   deleteMovimientoInsumo: (id: string) => boolean;
 
