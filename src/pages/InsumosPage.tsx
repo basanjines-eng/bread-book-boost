@@ -849,16 +849,51 @@ export default function InsumosPage() {
               <>
                 <div><Label>Precio Unitario (Bs)</Label><Input type="number" value={movPrecio} onChange={e => setMovPrecio(e.target.value)} min="0" /></div>
                 <div><Label>Proveedor</Label><Input value={movProveedor} onChange={e => setMovProveedor(e.target.value)} /></div>
-                <div>
-                  <Label>Cuenta de Pago *</Label>
-                  <Select value={movCuentaPagoId} onValueChange={setMovCuentaPagoId}>
-                    <SelectTrigger><SelectValue placeholder="Seleccionar cuenta" /></SelectTrigger>
-                    <SelectContent>
-                      {cuentas.filter(c => c.activa && (c.es_caja_banco || c.codigo === 'P1.1')).map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nombre}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Distribución del pago *</Label>
+                    <Button type="button" variant="outline" size="sm" className="h-7 text-xs"
+                      onClick={() => setMovPagos(prev => [...prev, { cuenta_id: "", monto: "" }])}>
+                      <Plus className="h-3 w-3 mr-1" />Agregar cuenta
+                    </Button>
+                  </div>
+                  {movPagos.map((p, idx) => (
+                    <div key={idx} className="flex gap-2 items-start">
+                      <div className="flex-1">
+                        <Select value={p.cuenta_id} onValueChange={val => setMovPagos(prev => prev.map((x, i) => i === idx ? { ...x, cuenta_id: val } : x))}>
+                          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Seleccionar cuenta" /></SelectTrigger>
+                          <SelectContent>
+                            {cuentas.filter(c => c.activa && (c.es_caja_banco || c.codigo === 'P1.1')).map(c => (
+                              <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nombre}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Input type="number" placeholder="Monto" className="w-28 h-9 text-xs" min="0"
+                        value={p.monto}
+                        onChange={e => setMovPagos(prev => prev.map((x, i) => i === idx ? { ...x, monto: e.target.value } : x))} />
+                      {movPagos.length > 1 && (
+                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-destructive"
+                          onClick={() => setMovPagos(prev => prev.filter((_, i) => i !== idx))}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  {movCantidad && movPrecio && (() => {
+                    const total = (parseFloat(movCantidad) || 0) * (parseFloat(movPrecio) || 0);
+                    const dist = movPagos.reduce((s, p) => s + (parseFloat(p.monto) || 0), 0);
+                    const dif = total - dist;
+                    return (
+                      <div className="p-2 rounded bg-muted text-xs space-y-1">
+                        <div className="flex justify-between"><span>Costo total:</span><span>{formatMoney(total)}</span></div>
+                        <div className="flex justify-between"><span>Distribuido:</span><span>{formatMoney(dist)}</span></div>
+                        <div className={`flex justify-between font-semibold ${Math.abs(dif) > 0.01 ? 'text-destructive' : 'text-success'}`}>
+                          <span>Diferencia:</span><span>{formatMoney(dif)}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </>
             )}
