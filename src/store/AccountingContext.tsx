@@ -113,7 +113,10 @@ interface AccountingContextType {
   addInsumo: (i: Omit<Insumo, 'id' | 'created_at' | 'updated_at'>) => void;
   updateInsumo: (i: Insumo) => void;
   deleteInsumo: (id: string) => void;
-  addMovimientoInsumo: (m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>, cuentaPagoId?: string) => string;
+  addMovimientoInsumo: (
+    m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>,
+    cuentaPago?: string | { cuenta_id: string; monto: number }[],
+  ) => string;
   editMovimientoInsumo: (id: string, data: Partial<Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>>) => boolean;
   deleteMovimientoInsumo: (id: string) => boolean;
 
@@ -354,7 +357,10 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   // BUG FIX #1: generateNumero inside setState for movimiento insumo
-  const addMovimientoInsumo = useCallback((m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>, cuentaPagoId?: string): string => {
+  const addMovimientoInsumo = useCallback((
+    m: Omit<MovimientoInsumo, 'id' | 'created_at' | 'updated_at'>,
+    cuentaPago?: string | { cuenta_id: string; monto: number }[],
+  ): string => {
     const movId = generateId();
     const now = new Date().toISOString();
     setState(s => {
@@ -405,9 +411,17 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         const compId = generateId();
         const numero = generateNumero(m.fecha, s.comprobantes.length);
         const cInvInsumos = s.cuentas.find(c => c.codigo === 'A1.6');
-        // Use provided cuentaPagoId or fall back to first caja account
-        const cPago = cuentaPagoId ? s.cuentas.find(c => c.id === cuentaPagoId) : (s.cuentas.find(c => c.es_caja_banco && c.activa) || s.cuentas.find(c => c.codigo === 'A1.1'));
-        if (cInvInsumos && cPago) {
+        // Build pagos array: support multi-account distribution OR single id (legacy) OR fallback
+        let pagos: { cuenta_id: string; monto: number }[] = [];
+        if (Array.isArray(cuentaPago)) {
+          pagos = cuentaPago.filter(p => p.cuenta_id && p.monto > 0);
+        } else if (typeof cuentaPago === 'string' && cuentaPago) {
+          pagos = [{ cuenta_id: cuentaPago, monto: costoTotal }];
+        } else {
+          const cPago = s.cuentas.find(c => c.es_caja_banco && c.activa) || s.cuentas.find(c => c.codigo === 'A1.1');
+          if (cPago) pagos = [{ cuenta_id: cPago.id, monto: costoTotal }];
+        }
+        if (cInvInsumos && pagos.length > 0) {
           const comp: Comprobante = {
             id: compId, numero, fecha: m.fecha,
             glosa: `Compra de insumo: ${insumo?.nombre || ''}`,
@@ -415,7 +429,10 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
           };
           const dets: ComprobanteDetalle[] = [
             { id: generateId(), comprobante_id: compId, cuenta_id: cInvInsumos.id, descripcion: `Ingreso ${insumo?.nombre}`, debe: costoTotal, haber: 0 },
-            { id: generateId(), comprobante_id: compId, cuenta_id: cPago.id, descripcion: `Pago compra ${insumo?.nombre}`, debe: 0, haber: costoTotal },
+            ...pagos.map(p => ({
+              id: generateId(), comprobante_id: compId, cuenta_id: p.cuenta_id,
+              descripcion: `Pago compra ${insumo?.nombre}`, debe: 0, haber: p.monto,
+            })),
           ];
           newComprobantes = [...newComprobantes, comp];
           newDetalles = [...newDetalles, ...dets];

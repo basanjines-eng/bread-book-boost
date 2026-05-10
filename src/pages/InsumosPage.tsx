@@ -125,7 +125,7 @@ export default function InsumosPage() {
   const [movMotivo, setMovMotivo] = useState("");
   const [movAjusteTipo, setMovAjusteTipo] = useState<"sube" | "baja">("sube");
   const [movEsInventarioInicial, setMovEsInventarioInicial] = useState(false);
-  const [movCuentaPagoId, setMovCuentaPagoId] = useState("");
+  const [movPagos, setMovPagos] = useState<{ cuenta_id: string; monto: string }[]>([{ cuenta_id: "", monto: "" }]);
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
@@ -212,13 +212,13 @@ export default function InsumosPage() {
   const resetMovForm = () => {
     setMovInsumoId(""); setMovCantidad(""); setMovUnidad(""); setMovPrecio("");
     setMovProveedor(""); setMovReferencia(""); setMovObs(""); setMovMotivo("");
-    setMovFecha(today()); setMovFechaCompra(today()); setMovCuentaPagoId("");
+    setMovFecha(today()); setMovFechaCompra(today());
+    setMovPagos([{ cuenta_id: "", monto: "" }]);
     setShowMovForm(false);
     setMovEsInventarioInicial(false);
   };
   const handleSaveMovimiento = () => {
     if (!movInsumoId || !movCantidad) { toast.error("Insumo y cantidad son obligatorios"); return; }
-    if (movTipo === 'ENTRADA' && !movCuentaPagoId) { toast.error("Debe seleccionar una cuenta de pago"); return; }
     const ins = getInsumo(movInsumoId);
     if (!ins) return;
     const cantNum = parseFloat(movCantidad) || 0;
@@ -229,6 +229,17 @@ export default function InsumosPage() {
     if (movTipo === 'ENTRADA' && precioUnit <= 0) { toast.error("El precio unitario debe ser mayor a 0 para entradas"); return; }
     if (movTipo === 'AJUSTE' && movEsInventarioInicial && precioUnit <= 0) { toast.error("El precio unitario debe ser mayor a 0 para inventario inicial"); return; }
     const costoTotal = movTipo === 'ENTRADA' ? precioUnit * cantNum : 0;
+    let pagosValidos: { cuenta_id: string; monto: number }[] = [];
+    if (movTipo === 'ENTRADA') {
+      pagosValidos = movPagos
+        .filter(p => p.cuenta_id && parseFloat(p.monto) > 0)
+        .map(p => ({ cuenta_id: p.cuenta_id, monto: parseFloat(p.monto) }));
+      if (pagosValidos.length === 0) { toast.error("Debe agregar al menos una cuenta de pago"); return; }
+      const sumPagos = pagosValidos.reduce((s, p) => s + p.monto, 0);
+      if (Math.abs(sumPagos - costoTotal) > 0.01) {
+        toast.error(`La suma de pagos (${sumPagos.toFixed(2)}) debe igualar el costo total (${costoTotal.toFixed(2)})`); return;
+      }
+    }
     let cantEquiv: number;
     if (movTipo === 'AJUSTE' && movEsInventarioInicial) {
       cantEquiv = cantBase; // inventario inicial: cantidad absoluta
@@ -247,7 +258,7 @@ export default function InsumosPage() {
       cantidad_equivalente_base: cantEquiv, precio_unitario: precioUnit,
       costo_total: costoTotal, motivo: motivoFinal, proveedor: movProveedor,
       referencia: movReferencia, observacion: movObs,
-    }, movTipo === 'ENTRADA' ? movCuentaPagoId : undefined);
+    }, movTipo === 'ENTRADA' ? pagosValidos : undefined);
     toast.success(`Movimiento registrado: ${movTipo}`);
     resetMovForm();
   };
@@ -838,16 +849,51 @@ export default function InsumosPage() {
               <>
                 <div><Label>Precio Unitario (Bs)</Label><Input type="number" value={movPrecio} onChange={e => setMovPrecio(e.target.value)} min="0" /></div>
                 <div><Label>Proveedor</Label><Input value={movProveedor} onChange={e => setMovProveedor(e.target.value)} /></div>
-                <div>
-                  <Label>Cuenta de Pago *</Label>
-                  <Select value={movCuentaPagoId} onValueChange={setMovCuentaPagoId}>
-                    <SelectTrigger><SelectValue placeholder="Seleccionar cuenta" /></SelectTrigger>
-                    <SelectContent>
-                      {cuentas.filter(c => c.activa && (c.es_caja_banco || c.codigo === 'P1.1')).map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nombre}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Distribución del pago *</Label>
+                    <Button type="button" variant="outline" size="sm" className="h-7 text-xs"
+                      onClick={() => setMovPagos(prev => [...prev, { cuenta_id: "", monto: "" }])}>
+                      <Plus className="h-3 w-3 mr-1" />Agregar cuenta
+                    </Button>
+                  </div>
+                  {movPagos.map((p, idx) => (
+                    <div key={idx} className="flex gap-2 items-start">
+                      <div className="flex-1">
+                        <Select value={p.cuenta_id} onValueChange={val => setMovPagos(prev => prev.map((x, i) => i === idx ? { ...x, cuenta_id: val } : x))}>
+                          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Seleccionar cuenta" /></SelectTrigger>
+                          <SelectContent>
+                            {cuentas.filter(c => c.activa && (c.es_caja_banco || c.codigo === 'P1.1')).map(c => (
+                              <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nombre}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Input type="number" placeholder="Monto" className="w-28 h-9 text-xs" min="0"
+                        value={p.monto}
+                        onChange={e => setMovPagos(prev => prev.map((x, i) => i === idx ? { ...x, monto: e.target.value } : x))} />
+                      {movPagos.length > 1 && (
+                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-destructive"
+                          onClick={() => setMovPagos(prev => prev.filter((_, i) => i !== idx))}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  {movCantidad && movPrecio && (() => {
+                    const total = (parseFloat(movCantidad) || 0) * (parseFloat(movPrecio) || 0);
+                    const dist = movPagos.reduce((s, p) => s + (parseFloat(p.monto) || 0), 0);
+                    const dif = total - dist;
+                    return (
+                      <div className="p-2 rounded bg-muted text-xs space-y-1">
+                        <div className="flex justify-between"><span>Costo total:</span><span>{formatMoney(total)}</span></div>
+                        <div className="flex justify-between"><span>Distribuido:</span><span>{formatMoney(dist)}</span></div>
+                        <div className={`flex justify-between font-semibold ${Math.abs(dif) > 0.01 ? 'text-destructive' : 'text-success'}`}>
+                          <span>Diferencia:</span><span>{formatMoney(dif)}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </>
             )}
