@@ -125,7 +125,7 @@ export default function InsumosPage() {
   const [movMotivo, setMovMotivo] = useState("");
   const [movAjusteTipo, setMovAjusteTipo] = useState<"sube" | "baja">("sube");
   const [movEsInventarioInicial, setMovEsInventarioInicial] = useState(false);
-  const [movCuentaPagoId, setMovCuentaPagoId] = useState("");
+  const [movPagos, setMovPagos] = useState<{ cuenta_id: string; monto: string }[]>([{ cuenta_id: "", monto: "" }]);
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
@@ -212,13 +212,13 @@ export default function InsumosPage() {
   const resetMovForm = () => {
     setMovInsumoId(""); setMovCantidad(""); setMovUnidad(""); setMovPrecio("");
     setMovProveedor(""); setMovReferencia(""); setMovObs(""); setMovMotivo("");
-    setMovFecha(today()); setMovFechaCompra(today()); setMovCuentaPagoId("");
+    setMovFecha(today()); setMovFechaCompra(today());
+    setMovPagos([{ cuenta_id: "", monto: "" }]);
     setShowMovForm(false);
     setMovEsInventarioInicial(false);
   };
   const handleSaveMovimiento = () => {
     if (!movInsumoId || !movCantidad) { toast.error("Insumo y cantidad son obligatorios"); return; }
-    if (movTipo === 'ENTRADA' && !movCuentaPagoId) { toast.error("Debe seleccionar una cuenta de pago"); return; }
     const ins = getInsumo(movInsumoId);
     if (!ins) return;
     const cantNum = parseFloat(movCantidad) || 0;
@@ -229,6 +229,17 @@ export default function InsumosPage() {
     if (movTipo === 'ENTRADA' && precioUnit <= 0) { toast.error("El precio unitario debe ser mayor a 0 para entradas"); return; }
     if (movTipo === 'AJUSTE' && movEsInventarioInicial && precioUnit <= 0) { toast.error("El precio unitario debe ser mayor a 0 para inventario inicial"); return; }
     const costoTotal = movTipo === 'ENTRADA' ? precioUnit * cantNum : 0;
+    let pagosValidos: { cuenta_id: string; monto: number }[] = [];
+    if (movTipo === 'ENTRADA') {
+      pagosValidos = movPagos
+        .filter(p => p.cuenta_id && parseFloat(p.monto) > 0)
+        .map(p => ({ cuenta_id: p.cuenta_id, monto: parseFloat(p.monto) }));
+      if (pagosValidos.length === 0) { toast.error("Debe agregar al menos una cuenta de pago"); return; }
+      const sumPagos = pagosValidos.reduce((s, p) => s + p.monto, 0);
+      if (Math.abs(sumPagos - costoTotal) > 0.01) {
+        toast.error(`La suma de pagos (${sumPagos.toFixed(2)}) debe igualar el costo total (${costoTotal.toFixed(2)})`); return;
+      }
+    }
     let cantEquiv: number;
     if (movTipo === 'AJUSTE' && movEsInventarioInicial) {
       cantEquiv = cantBase; // inventario inicial: cantidad absoluta
@@ -247,7 +258,7 @@ export default function InsumosPage() {
       cantidad_equivalente_base: cantEquiv, precio_unitario: precioUnit,
       costo_total: costoTotal, motivo: motivoFinal, proveedor: movProveedor,
       referencia: movReferencia, observacion: movObs,
-    }, movTipo === 'ENTRADA' ? movCuentaPagoId : undefined);
+    }, movTipo === 'ENTRADA' ? pagosValidos : undefined);
     toast.success(`Movimiento registrado: ${movTipo}`);
     resetMovForm();
   };
