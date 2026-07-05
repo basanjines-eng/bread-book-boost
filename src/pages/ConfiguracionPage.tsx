@@ -13,7 +13,7 @@ import { formatMoney, formatDate, today } from "@/lib/accounting";
 export default function ConfiguracionPage() {
   const {
     cuentas, comprobantes, detalles, productos, addComprobante, contabilizar, deleteComprobante,
-    isMesCerrado, getCuentaByCodigo, addProducto,
+    isMesCerrado, getCuentaByCodigo, addProducto, resetContabilidad,
   } = useAccounting();
 
   // ==================== PRODUCTOS ====================
@@ -179,6 +179,25 @@ export default function ConfiguracionPage() {
       localStorage.removeItem('panconta_activos_fijos');
       window.location.reload();
     }
+  };
+
+  const handleResetContabilidad = () => {
+    const msg = '¿Seguro que querés RESETEAR la contabilidad?\n\n' +
+      'Se eliminarán:\n' +
+      '• Todos los comprobantes y asientos del Libro Diario\n' +
+      '• Todas las ventas y producciones\n' +
+      '• Todos los movimientos de insumos (entradas, salidas, ajustes)\n' +
+      '• Todos los cierres mensuales\n' +
+      '• Stocks de insumos y productos (vuelven a 0)\n\n' +
+      'Se CONSERVAN:\n' +
+      '• Insumos y sus datos\n' +
+      '• Recetas\n' +
+      '• Productos y plan de cuentas\n\n' +
+      'Esta acción no se puede deshacer.';
+    if (!confirm(msg)) return;
+    if (!confirm('Confirmación final: ¿empezar contabilidad desde cero?')) return;
+    resetContabilidad();
+    toast.success('Contabilidad reiniciada. Podés registrar la apertura y comenzar de nuevo.');
   };
 
   return (
@@ -373,6 +392,17 @@ export default function ConfiguracionPage() {
           <p className="text-sm text-muted-foreground">
             Los datos se almacenan localmente en el navegador. Se recomienda migrar a una base de datos para producción.
           </p>
+          <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 space-y-2">
+            <h3 className="font-semibold text-sm text-destructive">Resetear contabilidad</h3>
+            <p className="text-xs text-muted-foreground">
+              Borra comprobantes, ventas, producciones, movimientos de insumos, cierres y stocks
+              para empezar de cero. <strong>Conserva insumos, recetas, productos y plan de cuentas.</strong>
+              Útil cuando pasó mucho tiempo sin registrar y querés arrancar limpio.
+            </p>
+            <Button variant="destructive" onClick={handleResetContabilidad}>
+              <XCircle className="h-4 w-4 mr-2" />Resetear Contabilidad
+            </Button>
+          </div>
           <div className="flex gap-4">
             <Button variant="destructive" onClick={resetData}><Trash2 className="h-4 w-4 mr-2" />Reiniciar Datos</Button>
             <Button variant="outline" onClick={() => window.location.reload()}><RefreshCw className="h-4 w-4 mr-2" />Recargar App</Button>
