@@ -134,6 +134,7 @@ interface AccountingContextType {
 
   // Reset
   resetDatosOperativos: () => void;
+  resetContabilidad: () => void;
 }
 
 const AccountingContext = createContext<AccountingContextType | null>(null);
@@ -1271,6 +1272,37 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     }));
   }, []);
 
+  // ─── RESET CONTABILIDAD ──────────────────────────────
+  // Borra toda la contabilidad y movimientos (comprobantes, ventas, producciones,
+  // movimientos de insumos, cierres) para empezar de cero. CONSERVA insumos, recetas,
+  // productos y plan de cuentas. Los stocks se reinician a 0 (manteniendo el CPP
+  // como referencia para futuras entradas).
+  const resetContabilidad = useCallback(() => {
+    setState(s => ({
+      ...s,
+      comprobantes: [],
+      detalles: [],
+      producciones: [],
+      ventas: [],
+      cierres: [],
+      movimientosInsumos: [],
+      stock: s.stock.map(st => ({
+        ...st,
+        cantidad_actual: 0,
+        valor_actual: 0,
+        costo_promedio: 0,
+        updated_at: new Date().toISOString(),
+      })),
+      stockInsumos: s.stockInsumos.map(si => ({
+        ...si,
+        cantidad_actual: 0,
+        valor_actual: 0,
+        // Preservamos costo_promedio como referencia histórica del CPP
+        updated_at: new Date().toISOString(),
+      })),
+    }));
+  }, []);
+
   // ─── CONTEXT VALUE ───────────────────────────────────
   const value: AccountingContextType = {
     // Data
@@ -1300,7 +1332,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     addMovimientoInsumo, editMovimientoInsumo, deleteMovimientoInsumo,
     addReceta, updateReceta, deleteReceta, getRecetaInsumos, calcularCostoReceta,
     cerrarMes, reabrirMes, isMesCerrado,
-    resetDatosOperativos,
+    resetDatosOperativos, resetContabilidad,
   };
 
   return (

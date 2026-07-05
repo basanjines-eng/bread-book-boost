@@ -87,6 +87,7 @@ export default function LibroDiario() {
     });
   }, [comprobantes]);
   const [filtroEstado, setFiltroEstado] = useState<string>("TODOS");
+  const [ocultarCerrados, setOcultarCerrados] = useState<boolean>(false);
   const [autoDescribirLoading, setAutoDescribirLoading] = useState(false);
   const [explicacion, setExplicacion] = useState("");
   const [showExplicacion, setShowExplicacion] = useState(false);
@@ -96,7 +97,8 @@ export default function LibroDiario() {
   const activos = comprobantes.filter(c => !c.deleted_at);
   const filtered = [...activos]
     .sort((a, b) => b.fecha.localeCompare(a.fecha))
-    .filter(c => filtroEstado === "TODOS" || c.estado === filtroEstado);
+    .filter(c => filtroEstado === "TODOS" || c.estado === filtroEstado)
+    .filter(c => !ocultarCerrados || !isMesCerrado(c.fecha));
 
   const addLinea = () => setLineas([...lineas, { cuenta_id: "", descripcion: "", debe: 0, haber: 0 }]);
   const removeLinea = (i: number) => setLineas(lineas.filter((_, idx) => idx !== i));
@@ -524,6 +526,15 @@ Las descripciones deben ser ${lineasConCuenta.length} en total, en el mismo orde
             {e}
           </Button>
         ))}
+        <Button
+          variant={ocultarCerrados ? "default" : "outline"}
+          size="sm"
+          onClick={() => setOcultarCerrados(v => !v)}
+          className="text-xs ml-2"
+          title="Oculta comprobantes de meses ya cerrados"
+        >
+          {ocultarCerrados ? "Mostrar meses cerrados" : "Ocultar meses cerrados"}
+        </Button>
         <span className="ml-auto text-xs text-muted-foreground">
           {filtered.length} comprobante{filtered.length !== 1 ? "s" : ""}
         </span>
