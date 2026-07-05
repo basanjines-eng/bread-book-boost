@@ -134,6 +134,7 @@ interface AccountingContextType {
 
   // Reset
   resetDatosOperativos: () => void;
+  resetContabilidad: () => void;
 }
 
 const AccountingContext = createContext<AccountingContextType | null>(null);
