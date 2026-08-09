@@ -33,7 +33,17 @@ const STORAGE_KEY = 'panconta_state';
 function getInitialState(): AccountingState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed: AccountingState = JSON.parse(raw);
+      // Asegurar cuentas nuevas agregadas en versiones posteriores
+      const requeridas = getInitialCuentas().filter(c => c.codigo === 'A1.8');
+      for (const req of requeridas) {
+        if (!parsed.cuentas?.some(c => c.codigo === req.codigo)) {
+          parsed.cuentas = [...(parsed.cuentas ?? []), req];
+        }
+      }
+      return parsed;
+    }
   } catch {}
   const cuentas = getInitialCuentas();
   const productos = getInitialProductos(cuentas);
