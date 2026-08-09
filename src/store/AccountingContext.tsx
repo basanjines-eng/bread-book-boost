@@ -35,11 +35,18 @@ function getInitialState(): AccountingState {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed: AccountingState = JSON.parse(raw);
-      // Asegurar cuentas nuevas agregadas en versiones posteriores
-      const requeridas = getInitialCuentas().filter(c => c.codigo === 'A1.8');
+      // Asegurar cuentas nuevas agregadas en versiones posteriores (por NOMBRE, no por código)
+      const requeridas = getInitialCuentas().filter(c => c.nombre === 'Pagos por Adelantado');
       for (const req of requeridas) {
-        if (!parsed.cuentas?.some(c => c.codigo === req.codigo)) {
-          parsed.cuentas = [...(parsed.cuentas ?? []), req];
+        const existe = (parsed.cuentas ?? []).some(
+          c => c.nombre.toLowerCase().trim() === req.nombre.toLowerCase().trim()
+        );
+        if (!existe) {
+          // Buscar el siguiente código libre A1.x
+          const usados = new Set((parsed.cuentas ?? []).map(c => c.codigo));
+          let n = 1;
+          while (usados.has(`A1.${n}`)) n++;
+          parsed.cuentas = [...(parsed.cuentas ?? []), { ...req, codigo: `A1.${n}` }];
         }
       }
       return parsed;
