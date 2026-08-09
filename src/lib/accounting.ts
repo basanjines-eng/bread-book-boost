@@ -57,6 +57,7 @@ export function getInitialCuentas(): Cuenta[] {
     make('A1.5', 'Cuentas por Cobrar', 'ACTIVO'),
     make('A1.6', 'Inventario de Insumos', 'ACTIVO'),
     make('A1.7', 'Inventario de Producto Terminado', 'ACTIVO'),
+    make('A1.8', 'Pagos por Adelantado', 'ACTIVO'),
     make('P1.1', 'Cuentas por Pagar', 'PASIVO'),
     make('P1.2', 'Préstamos de Personas', 'PASIVO'),
     make('P1.3', 'Préstamos Bancarios', 'PASIVO'),
