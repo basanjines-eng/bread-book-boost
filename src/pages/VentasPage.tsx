@@ -127,6 +127,13 @@ export default function VentasPage() {
       toast.error("La distribución del cobro debe ser igual al total de la venta"); return;
     }
 
+    for (const a of anticiposPendientes) {
+      const usado = anticipoLines.reduce((s, l) => l.comprobante_id === a.comprobante.id ? s + (parseFloat(l.monto) || 0) : s, 0);
+      if (usado > a.saldoPendiente + 0.01) {
+        toast.error(`El anticipo "${a.comprobante.glosa}" excede su saldo pendiente`); return;
+      }
+    }
+
     // Include anticipo as a cobro line if applicable
     const allCobros: VentaCobro[] = cobrosValidos.map(c => ({
       cuenta_id: c.cuenta_id,
