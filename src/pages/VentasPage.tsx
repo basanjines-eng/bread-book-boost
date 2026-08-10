@@ -32,8 +32,7 @@ export default function VentasPage() {
   const [cantidad, setCantidad] = useState("");
   const [totalVenta, setTotalVenta] = useState("");
   const [cobros, setCobros] = useState<CobroLine[]>([{ cuenta_id: "", monto: "" }]);
-  const [anticipoSeleccionado, setAnticipoSeleccionado] = useState("");
-  const [anticipoMonto, setAnticipoMonto] = useState("");
+  const [anticipoLines, setAnticipoLines] = useState<{ comprobante_id: string; monto: string }[]>([]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -46,7 +45,7 @@ export default function VentasPage() {
   const margen = totalNum - costoEst;
   const margenPct = totalNum > 0 ? (margen / totalNum) * 100 : 0;
 
-  const anticipoMontoNum = parseFloat(anticipoMonto) || 0;
+  const anticipoMontoNum = anticipoLines.reduce((s, a) => s + (parseFloat(a.monto) || 0), 0);
   const totalDistribuido = cobros.reduce((s, c) => s + (parseFloat(c.monto) || 0), 0) + anticipoMontoNum;
   const diferencia = totalNum - totalDistribuido;
 
@@ -90,9 +89,22 @@ export default function VentasPage() {
   const resetForm = () => {
     setProductoId(""); setCantidad(""); setTotalVenta("");
     setCobros([{ cuenta_id: "", monto: "" }]);
-    setAnticipoSeleccionado(""); setAnticipoMonto("");
+    setAnticipoLines([]);
     setFecha(today());
     setEditingId(null);
+  };
+
+  const addAnticipoLine = () => setAnticipoLines(prev => [...prev, { comprobante_id: "", monto: "" }]);
+  const removeAnticipoLine = (idx: number) => setAnticipoLines(prev => prev.filter((_, i) => i !== idx));
+  const updateAnticipoLine = (idx: number, field: 'comprobante_id' | 'monto', value: string) => {
+    setAnticipoLines(prev => prev.map((a, i) => {
+      if (i !== idx) return a;
+      if (field === 'comprobante_id') {
+        const ant = anticiposPendientes.find(p => p.comprobante.id === value);
+        return { comprobante_id: value, monto: ant ? String(ant.saldoPendiente) : a.monto };
+      }
+      return { ...a, monto: value };
+    }));
   };
 
   const addCobroLine = () => setCobros(prev => [...prev, { cuenta_id: "", monto: "" }]);
@@ -178,10 +190,13 @@ export default function VentasPage() {
       const regularCobros = cAnticipo ? v.cobros.filter(c => c.cuenta_id !== cAnticipo.id) : v.cobros;
       setCobros(regularCobros.length > 0 ? regularCobros.map(c => ({ cuenta_id: c.cuenta_id, monto: String(c.monto) })) : [{ cuenta_id: "", monto: "" }]);
       if (anticipoCobro) {
-        setAnticipoMonto(String(anticipoCobro.monto));
+        setAnticipoLines([{ comprobante_id: "", monto: String(anticipoCobro.monto) }]);
+      } else {
+        setAnticipoLines([]);
       }
     } else {
       setCobros([{ cuenta_id: v.forma_cobro_cuenta_id, monto: String(v.total_venta) }]);
+      setAnticipoLines([]);
     }
   };
 
@@ -231,32 +246,45 @@ export default function VentasPage() {
             {/* Anticipo */}
             {anticiposPendientes.length > 0 && (
               <div className="space-y-2 p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5">
-                <Label className="text-xs font-semibold">Aplicar Anticipo de Cliente</Label>
-                <Select value={anticipoSeleccionado} onValueChange={v => {
-                  setAnticipoSeleccionado(v);
-                  const ant = anticiposPendientes.find(a => a.comprobante.id === v);
-                  if (ant) setAnticipoMonto(String(ant.saldoPendiente));
-                }}>
-                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Seleccionar anticipo" /></SelectTrigger>
-                  <SelectContent>
-                    {anticiposPendientes.map(a => (
-                      <SelectItem key={a.comprobante.id} value={a.comprobante.id}>
-                        {formatDate(a.comprobante.fecha)} — {a.comprobante.glosa} ({formatMoney(a.saldoPendiente)})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {anticipoSeleccionado && (
-                  <div className="flex gap-2 items-end">
-                    <div className="flex-1">
-                      <Label className="text-xs">Monto a aplicar</Label>
-                      <Input type="number" value={anticipoMonto} onChange={e => setAnticipoMonto(e.target.value)} className="h-9 text-xs" />
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={() => { setAnticipoSeleccionado(""); setAnticipoMonto(""); }}>
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold">Aplicar Anticipos de Clientes</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addAnticipoLine} className="h-7 text-xs">
+                    <Plus className="h-3 w-3 mr-1" /> Agregar
+                  </Button>
+                </div>
+                {anticipoLines.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground">Puede aplicar varios anticipos de distintos clientes.</p>
                 )}
+                {anticipoLines.map((line, idx) => {
+                  const usadoEnOtras = anticipoLines.reduce((s, l, i) => i !== idx && l.comprobante_id === line.comprobante_id ? s + (parseFloat(l.monto) || 0) : s, 0);
+                  const sel = anticiposPendientes.find(a => a.comprobante.id === line.comprobante_id);
+                  const excede = sel ? (parseFloat(line.monto) || 0) + usadoEnOtras > sel.saldoPendiente + 0.01 : false;
+                  return (
+                    <div key={idx} className="space-y-1">
+                      <div className="flex gap-2 items-center">
+                        <div className="flex-1">
+                          <Select value={line.comprobante_id} onValueChange={v => updateAnticipoLine(idx, 'comprobante_id', v)}>
+                            <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Seleccionar anticipo" /></SelectTrigger>
+                            <SelectContent>
+                              {anticiposPendientes.map(a => (
+                                <SelectItem key={a.comprobante.id} value={a.comprobante.id}>
+                                  {formatDate(a.comprobante.fecha)} — {a.comprobante.glosa} ({formatMoney(a.saldoPendiente)})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Input type="number" min="0" value={line.monto} placeholder="Monto"
+                          onChange={e => updateAnticipoLine(idx, 'monto', e.target.value)}
+                          className="w-24 h-9 text-xs" />
+                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => removeAnticipoLine(idx)}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      {excede && <p className="text-[11px] text-destructive">Excede el saldo pendiente de ese anticipo.</p>}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
